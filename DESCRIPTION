@@ -1,0 +1,36 @@
+Package: FABLEDownscalR
+Title: FABLE + DownscalR helpers for spatial downscaling workflows
+Version: 0.0.1
+Author: Clara Douzal
+Maintainer: Clara Douzal <clara.douzal@unsdsn.org>
+Description: Utilities to load and validate country inputs, build land-use transition
+    matrices, rasterize the 50km grid, and produce standardized maps for FABLE and
+    DownscalR downscaling workflows.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports:
+    dplyr,
+    tidyr,
+    magrittr,
+    readr,
+    readxl,
+    stringr,
+    purrr,
+    geojsonio,
+    sf,
+    terra,
+    ggplot2,
+    ggthemes,
+    scales,
+    rlang,
+    downscalr,
+    yaml,
+    tibble
+Suggests:
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+VignetteBuilder: knitr
