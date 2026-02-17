@@ -105,18 +105,6 @@ fdr_build_priors <- function(inputs, start_map, good_ns_only = TRUE) {
                        log_altitude = log1p(as.numeric(MeanAltitude)-min(as.numeric(MeanAltitude),0)))
   }
 
-
-  Xmat_alt <- inputs$spatial$altitude %>%
-    dplyr::transmute(
-      id_c = as.character(id_c),
-      MeanAltitude = as.numeric(MeanAltitude),
-      # Treat impossible/sentinel values as missing
-      MeanAltitude = dplyr::na_if(MeanAltitude, -9999),
-      MeanAltitude = dplyr::na_if(MeanAltitude, -32768),
-      MeanAltitude = dplyr::if_else(MeanAltitude < 0, NA_real_, MeanAltitude),
-      log_altitude = log1p(MeanAltitude)
-    ) %>%
-    dplyr::select(id_c, log_altitude)
   # ---- 6) Slope (log1p) ----
   Xmat_slope <- NULL
   if (!is.null(sp$slope) && "MeanSlope" %in% names(sp$slope)) {
