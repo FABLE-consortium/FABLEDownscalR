@@ -390,6 +390,7 @@ fdr_run_downscaling <- function(
   # 5) Return clean outputs to the workflow
   # ---------------------------------------------------------------------------
   list(
+    oout.res            = results$out.res,
     downscaled_LUC      = results$out.res,
     X_long              = X_long,
     pred_coeff_long     = pred_coeff_long,
