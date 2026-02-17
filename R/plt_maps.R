@@ -37,6 +37,7 @@ fdr_plot_downscaled_maps <- function(
     out_res,
     rasterized_layer,
     ns_map,
+    year=NULL, LU=NULL,
     limits = NULL,
     palette = "Greens",
     na_color = "grey90"
@@ -51,8 +52,19 @@ fdr_plot_downscaled_maps <- function(
   names(df_pix)[3] <- "ns"
   df_pix <- dplyr::filter(df_pix, !is.na(ns))
 
+  ns = lu.to = times = value = x = y= NULL
+  if(is.null(year) & is.null(LU)){
+    inputs <- out_int %>% dplyr::group_by(ns, lu.to, times) %>% dplyr::summarise(value = sum(value),.groups = "keep")
+  } else if(!(is.null(year) | is.null(LU))){
+    inputs <- out_int %>% dplyr::group_by(ns, lu.to, times) %>% dplyr::summarise(value = sum(value),.groups = "keep") %>% subset(lu.to==LU & times==year)
+  } else if(is.null(year)){
+    inputs <- out_int %>% dplyr::group_by(ns, lu.to, times) %>% dplyr::summarise(value = sum(value),.groups = "keep") %>% subset(lu.to==LU)
+  } else {
+    inputs <- out_int %>% dplyr::group_by(ns, lu.to, times) %>% dplyr::summarise(value = sum(value),.groups = "keep") %>% subset(times==year)
+  }
+
   # Join pixels to values (many-to-many because we facet by lu.to and times)
-  plot_df <- dplyr::left_join(df_pix, out_int, by = "ns", relationship = "many-to-many") %>%
+  plot_df <- dplyr::left_join(df_pix, inputs, by = "ns", relationship = "many-to-many") %>%
     dplyr::filter(!is.na(lu.to), !is.na(times))
 
   # Stable global limits if not provided
@@ -61,7 +73,7 @@ fdr_plot_downscaled_maps <- function(
   }
 
   ggplot2::ggplot(plot_df) +
-    ggplot2::geom_raster(ggplot2::aes(x = x, y = y, fill = value)) +
+    ggplot2::geom_raster(ggplot2::aes(x = x, y = y, fill = value, group = lu.to)) +
     ggplot2::scale_fill_distiller(
       palette = palette,
       limits = limits,

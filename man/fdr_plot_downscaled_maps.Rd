@@ -8,6 +8,8 @@ fdr_plot_downscaled_maps(
   out_res,
   rasterized_layer,
   ns_map,
+  year = NULL,
+  LU = NULL,
   limits = NULL,
   palette = "Greens",
   na_color = "grey90"
