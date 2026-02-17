@@ -148,8 +148,6 @@ fdr_run_downscaling <- function(
   origins <- sort(unique(Yraw$lu.from))
 
   pred_coeff_long     <- tibble::tibble()
-  # country_start_areas <- tibble::tibble()
-
   country_start_areas <- lu_levels %>%
     dplyr::mutate(times = min(targets$times))
 
@@ -340,19 +338,6 @@ fdr_run_downscaling <- function(
 
     pred_coeff_long <- dplyr::bind_rows(pred_coeff_long, coef_long)
 
-    # # -----------------------------------------------------------------------
-    # # Save start areas for downscale()
-    # #
-    # # Why:
-    # # - downscale() needs baseline land-use areas per cell at the start year.
-    # # - We attach the first year present in targets (e.g. 2020).
-    # # -----------------------------------------------------------------------
-    # country_start_areas <- dplyr::bind_rows(
-    #   country_start_areas,
-    #   lu_levels %>%
-    #     dplyr::filter(lu.from == lu_from) %>%
-    #     dplyr::mutate(times = min(targets$times))
-    # )
   }
   message("n = number of spatial cells that have usable transition information for this origin land-use class after all filtering steps.")
 
