@@ -132,6 +132,7 @@ fdr_wrangle_fable_targets <- function(fable_sheet, min_year = 2020) {
     # Remove flows that are not modeled / not meaningful in your setup
     dplyr::filter(!(lu.from == "forest"   & lu.to == "newforest")) %>%
     dplyr::filter(!(lu.from == "newforest")) %>%
+    dplyr::filter(!(lu.from == "urban" & lu.to!= "urban")) %>%
     # Collapse duplicates created by the remap
     dplyr::group_by(times, lu.from, lu.to) %>%
     dplyr::summarise(value = sum(value, na.rm = TRUE), .groups = "drop") %>%
