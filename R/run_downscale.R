@@ -148,7 +148,11 @@ fdr_run_downscaling <- function(
   origins <- sort(unique(Yraw$lu.from))
 
   pred_coeff_long     <- tibble::tibble()
-  country_start_areas <- tibble::tibble()
+  # country_start_areas <- tibble::tibble()
+
+  country_start_areas <- lu_levels %>%
+    dplyr::mutate(times = min(targets$times))
+
 
   # ---------------------------------------------------------------------------
   # 3) Fit ONE MNL per origin land-use
@@ -336,21 +340,51 @@ fdr_run_downscaling <- function(
 
     pred_coeff_long <- dplyr::bind_rows(pred_coeff_long, coef_long)
 
-    # -----------------------------------------------------------------------
-    # Save start areas for downscale()
-    #
-    # Why:
-    # - downscale() needs baseline land-use areas per cell at the start year.
-    # - We attach the first year present in targets (e.g. 2020).
-    # -----------------------------------------------------------------------
-    country_start_areas <- dplyr::bind_rows(
-      country_start_areas,
-      lu_levels %>%
-        dplyr::filter(lu.from == lu_from) %>%
-        dplyr::mutate(times = min(targets$times))
-    )
+    # # -----------------------------------------------------------------------
+    # # Save start areas for downscale()
+    # #
+    # # Why:
+    # # - downscale() needs baseline land-use areas per cell at the start year.
+    # # - We attach the first year present in targets (e.g. 2020).
+    # # -----------------------------------------------------------------------
+    # country_start_areas <- dplyr::bind_rows(
+    #   country_start_areas,
+    #   lu_levels %>%
+    #     dplyr::filter(lu.from == lu_from) %>%
+    #     dplyr::mutate(times = min(targets$times))
+    # )
   }
   message("n = number of spatial cells that have usable transition information for this origin land-use class after all filtering steps.")
+
+  # --- Ensure we have betas for every target pair (flat/zero priors if missing) ---
+
+  # target pairs that DownscalR will require betas for (only those with positive targets)
+  target_pairs <- targets %>%
+    dplyr::filter(value > 0) %>%
+    dplyr::distinct(lu.from, lu.to)
+
+  # beta pairs we actually estimated
+  beta_pairs <- pred_coeff_long %>%
+    dplyr::distinct(lu.from, lu.to)
+
+  # find missing
+  missing_pairs <- dplyr::anti_join(target_pairs, beta_pairs, by = c("lu.from", "lu.to"))
+
+  if (nrow(missing_pairs) > 0) {
+    message(
+      "Completing betas with flat (0) priors for missing target pairs: ",
+      paste(paste0(missing_pairs$lu.from, "->", missing_pairs$lu.to), collapse = ", ")
+    )
+
+    # IMPORTANT: use the *same* ks that exist in X_long
+    ks_all <- sort(unique(X_long$ks))
+
+    filler <- tidyr::crossing(missing_pairs, ks = ks_all) %>%
+      dplyr::mutate(value = 0)
+
+    pred_coeff_long <- dplyr::bind_rows(pred_coeff_long, filler)
+  }
+
 
   # ---------------------------------------------------------------------------
   # 4) Run DownscalR spatial allocation
