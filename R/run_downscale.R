@@ -306,7 +306,6 @@ fdr_run_downscaling <- function(
 
       if (!inherits(fit_try, "try-error")) {
         fit <- fit_try
-        message("n = number of spatial cells that have usable transition information for this origin land-use class after all filtering steps.")
         break
       } else {
         msg <- conditionMessage(attr(fit_try, "condition"))
@@ -319,7 +318,7 @@ fdr_run_downscaling <- function(
               " (mnlogit failed even with ridge; priors will be missing for this origin)")
       next
     }
-
+    message("n = number of spatial cells that have usable transition information for this origin land-use class after all filtering steps.")
     # -----------------------------------------------------------------------
     # Extract posterior mean betas
     #
