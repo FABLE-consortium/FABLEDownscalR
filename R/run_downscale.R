@@ -318,7 +318,6 @@ fdr_run_downscaling <- function(
               " (mnlogit failed even with ridge; priors will be missing for this origin)")
       next
     }
-    message("n = number of spatial cells that have usable transition information for this origin land-use class after all filtering steps.")
     # -----------------------------------------------------------------------
     # Extract posterior mean betas
     #
@@ -351,6 +350,7 @@ fdr_run_downscaling <- function(
         dplyr::mutate(times = min(targets$times))
     )
   }
+  message("n = number of spatial cells that have usable transition information for this origin land-use class after all filtering steps.")
 
   # ---------------------------------------------------------------------------
   # 4) Run DownscalR spatial allocation
