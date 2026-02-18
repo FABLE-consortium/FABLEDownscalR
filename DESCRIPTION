@@ -25,9 +25,11 @@ Imports:
     ggthemes,
     scales,
     rlang,
-    downscalr,
     yaml,
-    tibble
+    tibble,
+    forcats
+Remotes:
+    tkrisztin/downscalr
 Suggests:
     knitr,
     rmarkdown,

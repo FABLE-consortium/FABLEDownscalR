@@ -22,7 +22,7 @@ fdr_to_ns_int <- function(df, ns_map) {
 }
 
 # -----------------------------------------------------------------------------
-#' Plot downscaled results on an ID raster (facet by time and destination)
+#' Plot downscaled results on an ID raster (facet by time and origins)
 #'
 #' @param out_res results table (typically fdr_run_downscaling()$out.res or $downscaled_LUC)
 #'               must have: ns, lu.to, times, value
@@ -79,6 +79,7 @@ fdr_plot_downscaled_maps <- function(
       limits = limits,
       na.value = na_color
     ) +
+    #ggplot2::labs(title = "")
     ggplot2::coord_equal(expand = FALSE) +
     ggthemes::theme_map() +
     ggplot2::theme(legend.position = "bottom") +

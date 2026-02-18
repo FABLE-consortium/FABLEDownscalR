@@ -2,7 +2,7 @@
 % Please edit documentation in R/plt_maps.R
 \name{fdr_plot_downscaled_maps}
 \alias{fdr_plot_downscaled_maps}
-\title{Plot downscaled results on an ID raster (facet by time and destination)}
+\title{Plot downscaled results on an ID raster (facet by time and origins)}
 \usage{
 fdr_plot_downscaled_maps(
   out_res,
@@ -30,5 +30,5 @@ must have: ns, lu.to, times, value}
 \item{na_color}{fill color for NA pixels}
 }
 \description{
-Plot downscaled results on an ID raster (facet by time and destination)
+Plot downscaled results on an ID raster (facet by time and origins)
 }
