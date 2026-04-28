@@ -105,12 +105,11 @@ fdr_plot_downscaled_LU_one <- function(
     out_res,
     rasterized_layer,
     ns_map,
-    border_sf           = NULL,
-    year                = c(2020, 2050),
-    LU                  = NULL,
-    dominance_threshold = 0.3,
-    na_color            = "grey90",
-    add_border          = TRUE
+    year=NULL, LU=NULL,
+    limits = NULL,
+    palette = "Greens",
+    na_color = "grey90",
+    add_border = TRUE
 ) {
 
   chk_required_cols(out_res, c("ns", "lu.to", "times", "value"))
@@ -355,39 +354,24 @@ fdr_plot_downscaled_LU <- function(
 
   p <- p +
     ggplot2::coord_equal(expand = FALSE) +
-    theme_fdr_map() +
-    ggplot2::facet_grid(
-      times ~ lu.to,
-      labeller = ggplot2::labeller(lu.to = lu_labels)
-    )
+    ggthemes::theme_map() +
+    ggplot2::theme(legend.position = "bottom") +
+    ggplot2::facet_grid(times ~ lu.to)
 
-  # ----------------------------
-  # Border + white mask outside
-  # ----------------------------
+
   if (add_border) {
-    if (!is.null(border_sf)) {
-      raster_crs <- terra::crs(rasterized_layer)
-      border_use <- sf::st_transform(border_sf, crs = raster_crs)
-    } else {
-      r          <- terra::app(rasterized_layer, function(x) ifelse(is.na(x), NA, 1))
-      border_use <- sf::st_as_sf(terra::as.polygons(r, dissolve = TRUE))
-    }
 
-    bbox_poly    <- sf::st_as_sfc(sf::st_bbox(border_use))
-    outside_poly <- sf::st_difference(bbox_poly, sf::st_union(border_use))
+    # Convert raster to polygon boundary
+    country_border <- terra::as.polygons(rasterized_layer, dissolve = TRUE)
+    country_border <- sf::st_as_sf(country_border)
 
+    # Add border on top of plot
     p <- p +
       ggplot2::geom_sf(
-        data      = outside_poly,
-        fill      = "white",
-        color     = NA,
-        linewidth = 0
-      ) +
-      ggplot2::geom_sf(
-        data      = border_use,
-        fill      = NA,
-        color     = "grey60",
-        linewidth = 0.3
+        data = country_border,
+        fill = NA,
+        color = "black",
+        linewidth = 0.5
       )
   }
 
