@@ -312,47 +312,15 @@ fdr_plot_downscaled_LU <- function(
     limits <- range(plot_df$value, na.rm = TRUE)
   }
 
-  plot_df <- plot_df %>%
-    dplyr::mutate(times = factor(times, levels = sort(unique(as.numeric(as.character(times))))))
-
-  lu_colors <- list(
-    cropland  = "#FFA500",
-    forest    = "#00B300",
-    newforest = "#7CFC00",
-    otherland = "#A020F0",
-    pasture   = "#FF0000",
-    urban     = "#A9A9A9"
-  )
-  lu_labels <- c(
-    cropland  = "Cropland",
-    forest    = "Forest",
-    newforest = "New forest",
-    otherland = "Other land",
-    pasture   = "Pasture",
-    urban     = "Urban"
-  )
-
-  library(ggnewscale)
-  p <- ggplot2::ggplot()
-  for (i in seq_along(lu_present)) {
-    lu <- lu_present[i]
-    p <- p +
-      ggplot2::geom_raster(
-        data = dplyr::filter(plot_df, lu.to == lu),
-        ggplot2::aes(x = x, y = y, fill = value)
-      ) +
-      ggplot2::scale_fill_gradient(
-        low      = "white",
-        high     = lu_colors[[lu]],
-        limits   = limits,
-        na.value = na_color,
-        name     = paste0(lu_labels[[lu]], " (1000 ha)")
-      )
-    if (i < length(lu_present)) p <- p + ggnewscale::new_scale_fill()
-  }
-
-
-  p <- p +
+  ggplot2::ggplot(plot_df) +
+    ggplot2::geom_raster(ggplot2::aes(x = x, y = y, fill = value, group = lu.to)) +
+    ggplot2::scale_fill_gradient(
+      low = "white",
+      high = "darkgreen",
+      limits = limits,
+      na.value = na_color
+    ) +
+    #ggplot2::labs(title = "")
     ggplot2::coord_equal(expand = FALSE) +
     ggthemes::theme_map() +
     ggplot2::theme(legend.position = "bottom") +
