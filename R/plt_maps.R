@@ -229,10 +229,21 @@ fdr_plot_downscaled_LU_one <- function(
   return(p)
 }
 
-
+# -----------------------------------------------------------------------------
+#' Plot downscaled results on an ID raster (facet by time and origins)
+#'
+#' @param out_res results table (typically fdr_run_downscaling()$out.res or $downscaled_LUC)
+#' must have: ns, lu.to, times, value
+#' @param rasterized_layer SpatRaster with ns_int values (from fdr_build_id_maps())
+#' @param ns_map id_c -> ns_int mapping (from fdr_build_ns_map())
+#' @param year
+#' @param LU
+#' @param limits numeric vector length 2 for consistent color scales across facets
+#' @param na_color fill color for NA pixels
+#' @param add_border
+#' @export
+# -----------------------------------------------------------------------------
 # LAND USE (multiple maps)
-
-
 fdr_plot_downscaled_LU <- function(
     out_res,
     rasterized_layer,
@@ -350,6 +361,20 @@ fdr_plot_downscaled_LU <- function(
   return(p)
 }
 
+# -----------------------------------------------------------------------------
+#' Plot downscaled results on an ID raster (facet by time and origins)
+#'
+#' @param out_res results table (typically fdr_run_downscaling()$out.res or $downscaled_LUC)
+#' must have: ns, lu.to, times, value
+#' @param rasterized_layer SpatRaster with ns_int values (from fdr_build_id_maps())
+#' @param ns_map id_c -> ns_int mapping (from fdr_build_ns_map())
+#' @param year
+#' @param LU
+#' @param limits numeric vector length 2 for consistent color scales across facets
+#' @param na_color fill color for NA pixels
+#' @param add_border
+#' @export
+# -----------------------------------------------------------------------------
 
 # LAND USE CHANGE (multiple maps)
 
@@ -472,6 +497,19 @@ fdr_plot_downscaled_LUC <- function(
 }
 
 
+# -----------------------------------------------------------------------------
+#' Plot downscaled results on an ID raster (facet by time and origins)
+#'
+#' @param out_res results table (typically fdr_run_downscaling()$out.res or $downscaled_LUC)
+#' must have: ns, lu.to, times, value
+#' @param rasterized_layer SpatRaster with ns_int values (from fdr_build_id_maps())
+#' @param ns_map id_c -> ns_int mapping (from fdr_build_ns_map())
+#' @param year
+#' @param LU
+#' @param na_color fill color for NA pixels
+#' @param add_border
+#' @export
+# -----------------------------------------------------------------------------
 
 # GHG (one aggregated map)
 
