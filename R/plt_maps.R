@@ -25,7 +25,7 @@ fdr_to_ns_int <- function(df, ns_map) {
 #' Plot downscaled results on an ID raster (facet by time and origins)
 #'
 #' @param out_res results table (typically fdr_run_downscaling()$out.res or $downscaled_LUC)
-#'               must have: ns, lu.to, times, value
+#' must have: ns, lu.to, times, value
 #' @param rasterized_layer SpatRaster with ns_int values (from fdr_build_id_maps())
 #' @param ns_map id_c -> ns_int mapping (from fdr_build_ns_map())
 #' @param limits numeric vector length 2 for consistent color scales across facets
@@ -33,55 +33,529 @@ fdr_to_ns_int <- function(df, ns_map) {
 #' @param na_color fill color for NA pixels
 #' @export
 # -----------------------------------------------------------------------------
-fdr_plot_downscaled_maps <- function(
+theme_fdr_map <- function(base_size = 11) {
+
+  ggplot2::theme_minimal(base_size = base_size) +
+
+    ggplot2::theme(
+
+      # -----------------------
+      # Background
+      # -----------------------
+      panel.background = ggplot2::element_rect(
+        fill = "white",
+        color = NA
+      ),
+      plot.background = ggplot2::element_rect(
+        fill = "white",
+        color = NA
+      ),
+
+      # -----------------------
+      # MATRIX GRID
+      # -----------------------
+      panel.border = ggplot2::element_rect(
+        fill = NA,
+        color = "grey90",   # light grid lines
+        linewidth = 0.4
+      ),
+
+      panel.spacing = ggplot2::unit(0, "lines"),
+
+      # -----------------------
+      # Facet strips
+      # -----------------------
+      strip.background = ggplot2::element_blank(),
+
+      strip.text.x = ggplot2::element_text(
+        face = "bold",
+        color = "black",
+        size = 11
+      ),
+
+      strip.text.y = ggplot2::element_text(
+        face = "bold",
+        color = "black",
+        size = 11,
+        angle = 270
+      ),
+
+      strip.placement = "outside",
+
+      # -----------------------
+      # Map style
+      # -----------------------
+      panel.grid = ggplot2::element_blank(),
+
+      axis.title = ggplot2::element_blank(),
+      axis.text = ggplot2::element_blank(),
+      axis.ticks = ggplot2::element_blank(),
+
+      # -----------------------
+      # Legend
+      # -----------------------
+      legend.position = "bottom",
+      legend.title = ggplot2::element_text(size = 10),
+      legend.text = ggplot2::element_text(size = 9)
+    )
+}
+
+# LAND USE (one aggregated map)
+
+library(ggpattern)
+
+fdr_plot_downscaled_LU_one <- function(
     out_res,
     rasterized_layer,
     ns_map,
-    year=NULL, LU=NULL,
-    limits = NULL,
-    palette = "Greens",
-    na_color = "grey90"
+    year                = NULL,
+    LU                  = NULL,
+    dominance_threshold = 0.3,
+    na_color            = "grey90",
+    add_border          = TRUE
 ) {
-  chk_required_cols(out_res, c("ns","lu.to","times","value"))
 
-  # Convert id_c -> ns_int (so we can paint the raster)
+  chk_required_cols(out_res, c("ns", "lu.to", "times", "value"))
+
   out_int <- fdr_to_ns_int(out_res, ns_map)
 
-  # Pixel canvas from raster
+  # ----------------------------
+  # Raster base
+  # ----------------------------
   df_pix <- terra::as.data.frame(rasterized_layer, xy = TRUE, na.rm = FALSE)
   names(df_pix)[3] <- "ns"
   df_pix <- dplyr::filter(df_pix, !is.na(ns))
 
-  ns = lu.to = times = value = x = y= NULL
-  if(is.null(year) & is.null(LU)){
-    inputs <- out_int %>% dplyr::group_by(ns, lu.to, times) %>% dplyr::summarise(value = sum(value),.groups = "keep")
-  } else if(!(is.null(year) | is.null(LU))){
-    inputs <- out_int %>% dplyr::group_by(ns, lu.to, times) %>% dplyr::summarise(value = sum(value),.groups = "keep") %>% subset(lu.to==LU & times==year)
-  } else if(is.null(year)){
-    inputs <- out_int %>% dplyr::group_by(ns, lu.to, times) %>% dplyr::summarise(value = sum(value),.groups = "keep") %>% subset(lu.to==LU)
-  } else {
-    inputs <- out_int %>% dplyr::group_by(ns, lu.to, times) %>% dplyr::summarise(value = sum(value),.groups = "keep") %>% subset(times==year)
+  # ----------------------------
+  # Aggregate
+  # ----------------------------
+  inputs <- out_int %>%
+    dplyr::group_by(ns, lu.to, times) %>%
+    dplyr::summarise(value = sum(value), .groups = "drop")
+
+  if (!is.null(LU))   inputs <- dplyr::filter(inputs, lu.to %in% LU)
+  if (!is.null(year)) inputs <- dplyr::filter(inputs, times %in% year)
+
+  # ----------------------------
+  # Dominant + secondary LU
+  # ----------------------------
+  inputs_dom <- inputs %>%
+    dplyr::group_by(ns, times) %>%
+    dplyr::arrange(dplyr::desc(value), .by_group = TRUE) %>%
+    dplyr::summarise(
+      top1      = lu.to[1],
+      top2      = ifelse(dplyr::n() > 1, lu.to[2], NA_character_),
+      value1    = value[1],
+      value2    = ifelse(dplyr::n() > 1, value[2], 0),
+      dominance = (value1 - value2) / (value1 + value2),
+      .groups   = "drop"
+    ) %>%
+    dplyr::mutate(
+      has_secondary = dominance < dominance_threshold & !is.na(top2)
+    )
+
+  # ----------------------------
+  # Merge with raster grid
+  # ----------------------------
+  plot_df <- df_pix %>%
+    dplyr::left_join(inputs_dom, by = "ns") %>%
+    dplyr::filter(!is.na(top1), !is.na(times))
+
+  secondary_df <- dplyr::filter(plot_df, has_secondary)
+
+  # ----------------------------
+  # Colors
+  # ----------------------------
+  lu_colors <- c(
+    cropland  = "#B8860B",
+    forest    = "#006400",
+    pasture   = "#B22222",
+    otherland = "#6A0DAD",
+    urban     = "#808080"
+  )
+
+  # ----------------------------
+  # Base layer: dominant LU
+  # ----------------------------
+  p <- ggplot2::ggplot(plot_df) +
+    ggplot2::geom_raster(
+      ggplot2::aes(x = x, y = y, fill = top1)
+    ) +
+    ggplot2::scale_fill_manual(
+      values = lu_colors,
+      name   = "Dominant land use"
+    )
+
+  # ----------------------------
+  # Stripe layer: secondary LU color
+  # ----------------------------
+  if (nrow(secondary_df) > 0) {
+    p <- p +
+      ggpattern::geom_tile_pattern(
+        data = secondary_df,
+        ggplot2::aes(x = x, y = y, pattern_fill = top2),
+        fill            = NA,
+        pattern         = "stripe",
+        pattern_angle   = 45,
+        pattern_density = 0.5,
+        pattern_spacing = 0.03,
+        pattern_color   = NA,
+        color           = NA
+      ) +
+      ggpattern::scale_pattern_fill_manual(
+        values = lu_colors,
+        guide  = "none"
+      )
   }
 
-  # Join pixels to values (many-to-many because we facet by lu.to and times)
-  plot_df <- dplyr::left_join(df_pix, inputs, by = "ns", relationship = "many-to-many") %>%
+  p <- p +
+    ggplot2::coord_equal(expand = FALSE) +
+    theme_fdr_map() +
+    ggplot2::facet_grid(times ~ ., labeller = ggplot2::label_value)
+
+  # ----------------------------
+  # Border
+  # ----------------------------
+  if (add_border) {
+    r      <- terra::app(rasterized_layer, function(x) ifelse(is.na(x), NA, 1))
+    border <- sf::st_as_sf(terra::as.polygons(r, dissolve = TRUE))
+
+    p <- p +
+      ggplot2::geom_sf(
+        data      = border,
+        fill      = NA,
+        color     = "black",
+        linewidth = 0.5
+      )
+  }
+
+  return(p)
+}
+
+
+# LAND USE (multiple maps)
+
+
+fdr_plot_downscaled_LU <- function(
+    out_res,
+    rasterized_layer,
+    ns_map,
+    year = NULL,
+    LU = NULL,
+    limits = NULL,
+    na_color = "grey90",
+    add_border = TRUE
+) {
+
+  chk_required_cols(out_res, c("ns", "lu.to", "times", "value"))
+
+  out_int <- fdr_to_ns_int(out_res, ns_map)
+
+  df_pix <- terra::as.data.frame(rasterized_layer, xy = TRUE, na.rm = FALSE)
+  names(df_pix)[3] <- "ns"
+  df_pix <- dplyr::filter(df_pix, !is.na(ns))
+
+
+
+  <- out_int %>%
+    dplyr::group_by(ns, lu.to, times) %>%
+    dplyr::summarise(value = sum(value), .groups = "drop")
+
+  if (!is.null(LU)) {
+    inputs <- inputs %>% dplyr::filter(lu.to %in% LU)
+  }
+
+  if (!is.null(year)) {inputs <- inputs %>% dplyr::filter(times %in% year)
+  }
+
+  plot_df <- df_pix %>%
+    dplyr::left_join(inputs, by = "ns") %>%
     dplyr::filter(!is.na(lu.to), !is.na(times))
 
-  # Stable global limits if not provided
+  lu_order <- c("newforest", "cropland", "otherland", "forest", "pasture")
+  plot_df$lu.to <- factor(plot_df$lu.to, levels = lu_order)
+
+  lu_present <- na.omit(unique(as.character(plot_df$lu.to)))
+
   if (is.null(limits)) {
     limits <- range(plot_df$value, na.rm = TRUE)
   }
 
-  ggplot2::ggplot(plot_df) +
-    ggplot2::geom_raster(ggplot2::aes(x = x, y = y, fill = value, group = lu.to)) +
-    ggplot2::scale_fill_distiller(
-      palette = palette,
-      limits = limits,
-      na.value = na_color
-    ) +
-    #ggplot2::labs(title = "")
+  lu_colors <- list(
+    cropland = "#B8860B",
+    forest = "#006400",
+    newforest = "#90EE90",
+    otherland = "#6A0DAD",
+    pasture = "#B22222",
+    urban='grey50'
+  )
+
+  lu_labels <- c(
+    cropland = "Cropland",
+    forest = "Forest",
+    newforest = "New forest",
+    otherland = "Other land",
+    pasture = "Pasture",
+    urban= "Urban"
+  )
+
+  library(ggnewscale)
+
+  p <- ggplot2::ggplot()
+
+  for (i in seq_along(lu_present)) {
+
+    lu <- lu_present[i]
+
+    p <- p +
+      ggplot2::geom_raster(
+        data = dplyr::filter(plot_df, lu.to == lu),
+        ggplot2::aes(x = x, y = y, fill = value)
+      ) +
+      ggplot2::scale_fill_gradient(
+        low = "white",
+        high = lu_colors[[lu]],
+        limits = limits,
+        na.value = na_color,
+        name = paste0(lu_labels[[lu]], " (1000 ha)")
+      )
+
+    if (i < length(lu_present)) {
+      p <- p + ggnewscale::new_scale_fill()
+    }
+  }
+
+  p <- p +
     ggplot2::coord_equal(expand = FALSE) +
-    ggthemes::theme_map() +
-    ggplot2::theme(legend.position = "bottom") +
-    ggplot2::facet_grid(times ~ lu.to)
+    theme_fdr_map() +
+    ggplot2::facet_grid(
+      times ~ lu.to,
+      labeller = ggplot2::labeller(lu.to = lu_labels)
+    )
+
+  if (add_border) {
+
+    r <- rasterized_layer
+    r[!is.na(r)] <- 1
+
+    country_border <- terra::as.polygons(r, dissolve = TRUE)
+    country_border <- sf::st_as_sf(country_border)
+
+    p <- p +
+      ggplot2::geom_sf(
+        data = country_border,
+        fill = NA,
+        color = "black",
+        linewidth = 0.5
+      )
+  }
+
+  return(p)
+}
+
+
+# LAND USE CHANGE (multiple maps)
+
+fdr_plot_downscaled_LUC <- function(
+    out_res,
+    rasterized_layer,
+    ns_map,
+    year = NULL,
+    LU = NULL,
+    limits = NULL,
+    na_color = "grey90",
+    add_border = TRUE
+) {
+
+  chk_required_cols(out_res, c("ns", "lu.to", "times", "value"))
+
+  out_int <- fdr_to_ns_int(out_res, ns_map)
+
+  df_pix <- terra::as.data.frame(rasterized_layer, xy = TRUE, na.rm = FALSE)
+  names(df_pix)[3] <- "ns"
+  df_pix <- dplyr::filter(df_pix, !is.na(ns))
+
+  inputs <- out_int %>%
+    dplyr::filter(lu.from != lu.to) %>%
+    # Gains by destination class
+    dplyr::group_by(lu.to, ns, times) %>%
+    dplyr::summarise(gain = sum(value, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::mutate(Type = "gain", lu = lu.to) %>%
+
+    # Bind losses by origin class (negative sign for map interpretation)
+    dplyr::bind_rows(
+      out_int %>%
+        dplyr::filter(lu.from != lu.to) %>%
+        dplyr::group_by(lu.from, ns, times) %>%
+        dplyr::summarise(loss = -sum(value, na.rm = TRUE), .groups = "drop") %>%
+        dplyr::mutate(Type = "loss", lu = lu.from)
+    ) %>%
+
+    # Collapse gains and losses into one signed number per cell and land-use
+    dplyr::group_by(lu, times, ns) %>%
+    dplyr::summarise(value = sum(gain, loss, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::rename(lu.to = lu)
+
+  if (!is.null(LU)) {
+    inputs <- inputs %>% dplyr::filter(lu.to %in% LU)
+  }
+
+  if (!is.null(year)) {
+    inputs <- inputs %>% dplyr::filter(times %in% year)
+  }
+
+  plot_df <- df_pix %>%
+    dplyr::left_join(inputs, by = "ns") %>%
+    dplyr::filter(!is.na(lu.to), !is.na(times))
+
+  lu_order <- c("cropland", "newforest", "otherland", "pasture", "forest", "urban")
+  plot_df$lu.to <- factor(plot_df$lu.to, levels = lu_order)
+
+  lu_labels <- c(
+    cropland = "Cropland",
+    forest = "Forest",
+    newforest = "New forest",
+    otherland = "Other land",
+    pasture = "Pasture",
+    urban = "Urban"
+  )
+
+  # ----------------------------
+  # GLOBAL LIMITS
+  # ----------------------------
+  if (is.null(limits)) {
+    max_abs <- max(abs(plot_df$value), na.rm = TRUE)
+    limits <- c(-max_abs, max_abs)
+  }
+
+  # ----------------------------
+  # PLOT
+  # ----------------------------
+  p <- ggplot2::ggplot(plot_df) +
+    ggplot2::geom_raster(
+      ggplot2::aes(x = x, y = y, fill = value)
+    ) +
+    ggplot2::scale_fill_gradient2(
+      low = "#b2182b",
+      mid = "white",
+      high = "#1a7f37",
+      midpoint = 0,
+      limits = limits,
+      na.value = na_color,
+      name = "1000 ha"
+    ) +
+    ggplot2::coord_equal(expand = FALSE) +
+    theme_fdr_map() +
+    ggplot2::facet_grid(
+      times ~ lu.to,
+      labeller = ggplot2::labeller(lu.to = lu_labels)
+    )
+
+  # ----------------------------
+  # BORDER
+  # ----------------------------
+  if (add_border) {
+
+    r <- rasterized_layer
+    r[!is.na(r)] <- 1
+
+    country_border <- terra::as.polygons(r, dissolve = TRUE)
+    country_border <- sf::st_as_sf(country_border)
+
+    p <- p +
+      ggplot2::geom_sf(
+        data = country_border,
+        fill = NA,
+        color = "black",
+        linewidth = 0.5
+      )
+  }
+
+  return(p)
+}
+
+
+
+# GHG (one aggregated map)
+
+fdr_plot_downscaled_GHG <- function(
+    out_res,
+    rasterized_layer,
+    ns_map,
+    year                = NULL,
+    LU                  = NULL,
+    na_color            = "grey90",
+    add_border          = TRUE
+) {
+
+  chk_required_cols(out_res, c("ns", "lu.to", "times", "GHG_biomass"))
+
+  out_int <- fdr_to_ns_int(out_res, ns_map)
+
+  # ----------------------------
+  # Raster base
+  # ----------------------------
+  df_pix <- terra::as.data.frame(rasterized_layer, xy = TRUE, na.rm = FALSE)
+  names(df_pix)[3] <- "ns"
+  df_pix <- dplyr::filter(df_pix, !is.na(ns))
+
+  # ----------------------------
+  # Aggregate GHG_biomass
+  # ----------------------------
+  inputs <- out_int %>%
+    dplyr::mutate(GHG_biomass = tidyr::replace_na(GHG_biomass, 0)) %>%
+    dplyr::group_by(ns, lu.to, times) %>%
+    dplyr::summarise(GHG_biomass = sum(GHG_biomass), .groups = "drop")
+
+  if (!is.null(LU))   inputs <- dplyr::filter(inputs, lu.to %in% LU)
+  if (!is.null(year)) inputs <- dplyr::filter(inputs, times %in% year)
+
+  # ----------------------------
+  # Sum GHG_biomass per ns x times (across all LU)
+  # ----------------------------
+  inputs_agg <- inputs %>%
+    dplyr::group_by(ns, times) %>%
+    dplyr::summarise(GHG_biomass = sum(GHG_biomass), .groups = "drop")
+
+  # ----------------------------
+  # Merge with raster grid
+  # ----------------------------
+  plot_df <- df_pix %>%
+    dplyr::left_join(inputs_agg, by = "ns") %>%
+    dplyr::filter(!is.na(GHG_biomass), !is.na(times))
+
+  # ----------------------------
+  # Plot
+  # ----------------------------
+  p <- ggplot2::ggplot(plot_df) +
+    ggplot2::geom_raster(
+      ggplot2::aes(x = x, y = y, fill = GHG_biomass)
+    ) +
+    ggplot2::scale_fill_gradient(
+      low   = "#FFFFF0",   # ivory
+      high  = "#3B0057",   # deep purple
+      name  = "GHG biomass",
+      guide = ggplot2::guide_colorbar(barwidth = 8, barheight = 0.8)
+    ) +
+    ggplot2::coord_equal(expand = FALSE) +
+    theme_fdr_map() +
+    ggplot2::facet_grid(times ~ ., labeller = ggplot2::label_value)
+
+  # ----------------------------
+  # Border
+  # ----------------------------
+  if (add_border) {
+    r      <- terra::app(rasterized_layer, function(x) ifelse(is.na(x), NA, 1))
+    border <- sf::st_as_sf(terra::as.polygons(r, dissolve = TRUE))
+
+    p <- p +
+      ggplot2::geom_sf(
+        data      = border,
+        fill      = NA,
+        color     = "black",
+        linewidth = 0.5
+      )
+  }
+
+  return(p)
 }
