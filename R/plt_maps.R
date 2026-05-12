@@ -21,18 +21,6 @@ fdr_to_ns_int <- function(df, ns_map) {
     dplyr::select(-ns_int)
 }
 
-# -----------------------------------------------------------------------------
-#' Plot downscaled results on an ID raster (facet by time and origins)
-#'
-#' @param out_res results table (typically fdr_run_downscaling()$out.res or $downscaled_LUC)
-#' must have: ns, lu.to, times, value
-#' @param rasterized_layer SpatRaster with ns_int values (from fdr_build_id_maps())
-#' @param ns_map id_c -> ns_int mapping (from fdr_build_ns_map())
-#' @param limits numeric vector length 2 for consistent color scales across facets
-#' @param palette distiller palette name
-#' @param na_color fill color for NA pixels
-#' @export
-# -----------------------------------------------------------------------------
 theme_fdr_map <- function(base_size = 11) {
 
   ggplot2::theme_minimal(base_size = base_size) +
@@ -100,10 +88,19 @@ theme_fdr_map <- function(base_size = 11) {
     )
 }
 
+# -----------------------------------------------------------------------------
+#' Plot downscaled results on an ID raster (facet by time and origins)
+#'
+#' @param out_res results table (typically fdr_run_downscaling()$out.res or $downscaled_LUC)
+#' must have: ns, lu.to, times, value
+#' @param rasterized_layer SpatRaster with ns_int values (from fdr_build_id_maps())
+#' @param ns_map id_c -> ns_int mapping (from fdr_build_ns_map())
+#' @param limits numeric vector length 2 for consistent color scales across facets
+#' @param palette distiller palette name
+#' @param na_color fill color for NA pixels
+#' @export
+# -----------------------------------------------------------------------------
 # LAND USE (one aggregated map)
-
-library(ggpattern)
-
 fdr_plot_downscaled_LU_one <- function(
     out_res,
     rasterized_layer,
