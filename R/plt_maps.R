@@ -257,7 +257,7 @@ fdr_plot_downscaled_LU <- function(
 
 
 
-  <- out_int %>%
+  out_int %>%
     dplyr::group_by(ns, lu.to, times) %>%
     dplyr::summarise(value = sum(value), .groups = "drop")
 
