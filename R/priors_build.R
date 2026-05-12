@@ -102,7 +102,7 @@ fdr_build_priors <- function(inputs, start_map, good_ns_only = TRUE) {
     altitude.df <- to_char_id(sp$altitude, "id_c")
     Xmat_alt <- altitude.df %>%
       dplyr::transmute(id_c,
-                       log_altitude = log1p(as.numeric(MeanAltitude)-min(as.numeric(MeanAltitude),0)))
+                       log_altitude = log1p(as.numeric(MeanAltitude)-min(as.numeric(MeanAltitude), 0, na.rm = TRUE)))
   }
 
   # ---- 6) Slope (log1p) ----
