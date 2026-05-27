@@ -283,7 +283,7 @@ fdr_plot_downscaled_LU <- function(
   lu_order <- c("newforest", "cropland", "otherland", "forest", "pasture")
   plot_df$lu.to <- factor(plot_df$lu.to, levels = lu_order)
 
-  lu_present <- na.omit(unique(as.character(plot_df$lu.to)))
+  lu_present <- lu_order[lu_order %in% as.character(plot_df$lu.to)]
 
   if (is.null(limits)) {
     limits <- range(plot_df$value, na.rm = TRUE)
