@@ -325,7 +325,7 @@ fdr_plot_downscaled_LU <- function(
         high = lu_colors[[lu]],
         limits = limits,
         na.value = na_color,
-        name = paste0(lu_labels[[lu]], "/n(1000 ha)"),
+        name = paste0(lu_labels[[lu]], "\n(1000 ha)"),
         guide = ggplot2::guide_colorbar(order = i)
       )
 
