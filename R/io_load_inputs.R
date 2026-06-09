@@ -20,7 +20,7 @@
 fdr_load_inputs <- function(
     data_root,
     country,
-    start_map_source = c("HILDA", "COPERNICUS"),
+    start_map_source = c("HILDA", "COPERNICUS", "MAPBIOMAS),
     pathway,
     spatial_registry = NULL,
     mapping_registry = NULL,
@@ -28,7 +28,7 @@ fdr_load_inputs <- function(
 ) {
 
   start_map_source <- toupper(trimws(start_map_source))
-  start_map_source <- match.arg(start_map_source, choices = c("HILDA", "COPERNICUS"))
+  start_map_source <- match.arg(start_map_source, choices = c("HILDA", "COPERNICUS", "MAPBIOMAS))
 
   # ---- default registries ----
   if (is.null(spatial_registry)) {
