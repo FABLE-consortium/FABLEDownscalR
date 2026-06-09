@@ -407,7 +407,8 @@ fdr_run_downscaling <- function(
     targets     = targets,
     start.areas = country_start_areas,
     xmat        = X_long,
-    betas       = pred_coeff_long
+    betas       = pred_coeff_long,
+    restrictions = NULL # missing restrictions? 
   )
 
   # ---------------------------------------------------------------------------
