@@ -105,7 +105,8 @@ fdr_plot_downscaled_LU_one <- function(
     out_res,
     rasterized_layer,
     ns_map,
-    year                = NULL,
+    border_sf           = NULL,
+    year                = c(2020, 2050),
     LU                  = NULL,
     dominance_threshold = 0.3,
     na_color            = "grey90",
@@ -151,6 +152,11 @@ fdr_plot_downscaled_LU_one <- function(
       has_secondary = dominance < dominance_threshold & !is.na(top2)
     )
 
+  # Keep facet order 2020 -> 2050 regardless of factor/character type
+  inputs_dom <- inputs_dom %>%
+    dplyr::mutate(times = factor(times, levels = sort(unique(as.numeric(as.character(times))))))
+
+
   # ----------------------------
   # Merge with raster grid
   # ----------------------------
@@ -164,11 +170,11 @@ fdr_plot_downscaled_LU_one <- function(
   # Colors
   # ----------------------------
   lu_colors <- c(
-    cropland  = "#B8860B",
-    forest    = "#006400",
-    pasture   = "#B22222",
-    otherland = "#6A0DAD",
-    urban     = "#808080"
+    cropland  = "#FFA500",
+    forest    = "#00B300",
+    pasture   = "#FF0000",
+    otherland = "#A020F0",
+    urban     = "#A9A9A9"
   )
 
   # ----------------------------
@@ -211,23 +217,40 @@ fdr_plot_downscaled_LU_one <- function(
     ggplot2::facet_grid(times ~ ., labeller = ggplot2::label_value)
 
   # ----------------------------
-  # Border
+  # Border + white mask outside
   # ----------------------------
   if (add_border) {
-    r      <- terra::app(rasterized_layer, function(x) ifelse(is.na(x), NA, 1))
-    border <- sf::st_as_sf(terra::as.polygons(r, dissolve = TRUE))
+    if (!is.null(border_sf)) {
+      raster_crs <- terra::crs(rasterized_layer)
+      border_use <- sf::st_transform(border_sf, crs = raster_crs)
+    } else {
+      r          <- terra::app(rasterized_layer, function(x) ifelse(is.na(x), NA, 1))
+      border_use <- sf::st_as_sf(terra::as.polygons(r, dissolve = TRUE))
+    }
 
+    # Compute inverse: bounding box minus the border = outside area
+    bbox_poly    <- sf::st_as_sfc(sf::st_bbox(border_use))
+    outside_poly <- sf::st_difference(bbox_poly, sf::st_union(border_use))
+
+    # White layer covering everything outside the border
     p <- p +
       ggplot2::geom_sf(
-        data      = border,
+        data      = outside_poly,
+        fill      = "white",
+        color     = NA,
+        linewidth = 0
+      ) +
+      ggplot2::geom_sf(
+        data      = border_use,
         fill      = NA,
-        color     = "black",
-        linewidth = 0.5
+        color     = "grey60",
+        linewidth = 0.3
       )
   }
 
   return(p)
 }
+
 
 # -----------------------------------------------------------------------------
 #' Plot downscaled results on an ID raster (facet by time and origins)
