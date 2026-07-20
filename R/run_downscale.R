@@ -44,7 +44,8 @@ fdr_run_downscaling <- function(
     country_luc,
     priors,
     mnl_niter = 100,
-    mnl_nburn = 50
+    mnl_nburn = 50,
+    country_iso3
 ) {
 
   if (!requireNamespace("downscalr", quietly = TRUE)) {
@@ -411,7 +412,40 @@ fdr_run_downscaling <- function(
   )
 
   # ---------------------------------------------------------------------------
-  # 5) Return clean outputs to the workflow
+  # 5) Computing GHG due to Land use change by ecoregion
+  # ---------------------------------------------------------------------------
+  library(readxl)
+  library(readr)
+  # EF_Pools_transition_Ecoregion <- read_csv("Data/EF_Pools_transition_Ecoregion.csv") %>%
+  #   filter(iso3 == "UZB") # Need to update according to the country
+
+
+  if (missing(country_iso3) || is.null(country_iso3) || !nzchar(country_iso3)) {
+    stop("fdr_run_downscaling(): `country_iso3` must be supplied (e.g. 'UZB').")
+  }
+
+  EF_Pools_transition_Ecoregion <- read_csv("Data/EF_Pools_transition_Ecoregion.csv") %>%
+    filter(iso3 == country_iso3) %>%
+    mutate(to = (ifelse(to == "forest", "newforest", to))) %>%
+    mutate(ef_biomass = (ifelse(to =="newforest", ef_biomass/50, ef_biomass)))
+
+
+  if (nrow(EF_Pools_transition_Ecoregion) == 0) {
+    stop("No rows found in EF_Pools_transition_Ecoregion.csv for iso3 = '", country_iso3, "'.")
+  }
+
+
+
+  results$out.res <- results$out.res %>%
+    left_join(EF_Pools_transition_Ecoregion %>%
+                select(id_c, from, to, ef_biomass),
+              by = c("ns" ="id_c", "lu.from" = "from", "lu.to" = "to")
+    ) %>%
+    mutate(GHG_biomass = ef_biomass * value * 3.667 / 1000)
+
+
+  # ---------------------------------------------------------------------------
+  # 6) Return clean outputs to the workflow
   # ---------------------------------------------------------------------------
   list(
     out.res            = results$out.res,
@@ -420,4 +454,7 @@ fdr_run_downscaling <- function(
     pred_coeff_long     = pred_coeff_long,
     country_start_areas = country_start_areas
   )
+
+
+
 }
