@@ -271,7 +271,8 @@ fdr_plot_downscaled_LU <- function(
     out_res,
     rasterized_layer,
     ns_map,
-    year = NULL,
+    border_sf  = NULL,
+    year       = c(2020, 2050),
     LU = NULL,
     limits = NULL,
     na_color = "grey90",
@@ -312,56 +313,45 @@ fdr_plot_downscaled_LU <- function(
     limits <- range(plot_df$value, na.rm = TRUE)
   }
 
-  lu_colors <- list(
-    cropland = "#B8860B",
-    forest = "#006400",
-    newforest = "#90EE90",
-    otherland = "#6A0DAD",
-    pasture = "#B22222",
-    urban='grey50'
-  )
+  plot_df <- plot_df %>%
+    dplyr::mutate(times = factor(times, levels = sort(unique(as.numeric(as.character(times))))))
 
+  lu_colors <- list(
+    cropland  = "#FFA500",
+    forest    = "#00B300",
+    newforest = "#7CFC00",
+    otherland = "#A020F0",
+    pasture   = "#FF0000",
+    urban     = "#A9A9A9"
+  )
   lu_labels <- c(
-    cropland = "Cropland",
-    forest = "Forest",
+    cropland  = "Cropland",
+    forest    = "Forest",
     newforest = "New forest",
     otherland = "Other land",
-    pasture = "Pasture",
-    urban= "Urban"
+    pasture   = "Pasture",
+    urban     = "Urban"
   )
 
   library(ggnewscale)
-
   p <- ggplot2::ggplot()
-
   for (i in seq_along(lu_present)) {
-
     lu <- lu_present[i]
-
     p <- p +
       ggplot2::geom_raster(
         data = dplyr::filter(plot_df, lu.to == lu),
         ggplot2::aes(x = x, y = y, fill = value)
       ) +
       ggplot2::scale_fill_gradient(
-        low = "white",
-        high = lu_colors[[lu]],
-        limits = limits,
+        low      = "white",
+        high     = lu_colors[[lu]],
+        limits   = limits,
         na.value = na_color,
-        name = paste0(lu_labels[[lu]], "\n(1000 ha)"),
-        guide = ggplot2::guide_colorbar(
-          order = i,
-          direction = "horizontal",
-          title.position = "top",
-          title.hjust = 0.5,
-          label.position = "top"
-        )
+        name     = paste0(lu_labels[[lu]], " (1000 ha)")
       )
-
-    if (i < length(lu_present)) {
-      p <- p + ggnewscale::new_scale_fill()
-    }
+    if (i < length(lu_present)) p <- p + ggnewscale::new_scale_fill()
   }
+
 
   p <- p +
     ggplot2::coord_equal(expand = FALSE) +
@@ -371,20 +361,33 @@ fdr_plot_downscaled_LU <- function(
       labeller = ggplot2::labeller(lu.to = lu_labels)
     )
 
+  # ----------------------------
+  # Border + white mask outside
+  # ----------------------------
   if (add_border) {
+    if (!is.null(border_sf)) {
+      raster_crs <- terra::crs(rasterized_layer)
+      border_use <- sf::st_transform(border_sf, crs = raster_crs)
+    } else {
+      r          <- terra::app(rasterized_layer, function(x) ifelse(is.na(x), NA, 1))
+      border_use <- sf::st_as_sf(terra::as.polygons(r, dissolve = TRUE))
+    }
 
-    r <- rasterized_layer
-    r[!is.na(r)] <- 1
-
-    country_border <- terra::as.polygons(r, dissolve = TRUE)
-    country_border <- sf::st_as_sf(country_border)
+    bbox_poly    <- sf::st_as_sfc(sf::st_bbox(border_use))
+    outside_poly <- sf::st_difference(bbox_poly, sf::st_union(border_use))
 
     p <- p +
       ggplot2::geom_sf(
-        data = country_border,
-        fill = NA,
-        color = "black",
-        linewidth = 0.5
+        data      = outside_poly,
+        fill      = "white",
+        color     = NA,
+        linewidth = 0
+      ) +
+      ggplot2::geom_sf(
+        data      = border_use,
+        fill      = NA,
+        color     = "grey60",
+        linewidth = 0.3
       )
   }
 
@@ -412,15 +415,14 @@ fdr_plot_downscaled_LUC <- function(
     out_res,
     rasterized_layer,
     ns_map,
-    year = NULL,
-    LU = NULL,
-    limits = NULL,
-    na_color = "grey90",
+    border_sf  = NULL,
+    year       = NULL,
+    LU         = NULL,
+    limits     = NULL,
+    na_color   = "grey90",
     add_border = TRUE
 ) {
-
   chk_required_cols(out_res, c("ns", "lu.to", "times", "value"))
-
   out_int <- fdr_to_ns_int(out_res, ns_map)
 
   df_pix <- terra::as.data.frame(rasterized_layer, xy = TRUE, na.rm = FALSE)
@@ -429,12 +431,9 @@ fdr_plot_downscaled_LUC <- function(
 
   inputs <- out_int %>%
     dplyr::filter(lu.from != lu.to) %>%
-    # Gains by destination class
     dplyr::group_by(lu.to, ns, times) %>%
     dplyr::summarise(gain = sum(value, na.rm = TRUE), .groups = "drop") %>%
     dplyr::mutate(Type = "gain", lu = lu.to) %>%
-
-    # Bind losses by origin class (negative sign for map interpretation)
     dplyr::bind_rows(
       out_int %>%
         dplyr::filter(lu.from != lu.to) %>%
@@ -442,19 +441,12 @@ fdr_plot_downscaled_LUC <- function(
         dplyr::summarise(loss = -sum(value, na.rm = TRUE), .groups = "drop") %>%
         dplyr::mutate(Type = "loss", lu = lu.from)
     ) %>%
-
-    # Collapse gains and losses into one signed number per cell and land-use
     dplyr::group_by(lu, times, ns) %>%
     dplyr::summarise(value = sum(gain, loss, na.rm = TRUE), .groups = "drop") %>%
     dplyr::rename(lu.to = lu)
 
-  if (!is.null(LU)) {
-    inputs <- inputs %>% dplyr::filter(lu.to %in% LU)
-  }
-
-  if (!is.null(year)) {
-    inputs <- inputs %>% dplyr::filter(times %in% year)
-  }
+  if (!is.null(LU))   inputs <- inputs %>% dplyr::filter(lu.to %in% LU)
+  if (!is.null(year)) inputs <- inputs %>% dplyr::filter(times %in% year)
 
   plot_df <- df_pix %>%
     dplyr::left_join(inputs, by = "ns") %>%
@@ -462,39 +454,30 @@ fdr_plot_downscaled_LUC <- function(
 
   lu_order <- c("cropland", "newforest", "otherland", "pasture", "forest", "urban")
   plot_df$lu.to <- factor(plot_df$lu.to, levels = lu_order)
-
   lu_labels <- c(
-    cropland = "Cropland",
-    forest = "Forest",
+    cropland  = "Cropland",
+    forest    = "Forest",
     newforest = "New forest",
     otherland = "Other land",
-    pasture = "Pasture",
-    urban = "Urban"
+    pasture   = "Pasture",
+    urban     = "Urban"
   )
 
-  # ----------------------------
-  # GLOBAL LIMITS
-  # ----------------------------
   if (is.null(limits)) {
     max_abs <- max(abs(plot_df$value), na.rm = TRUE)
-    limits <- c(-max_abs, max_abs)
+    limits  <- c(-max_abs, max_abs)
   }
 
-  # ----------------------------
-  # PLOT
-  # ----------------------------
   p <- ggplot2::ggplot(plot_df) +
-    ggplot2::geom_raster(
-      ggplot2::aes(x = x, y = y, fill = value)
-    ) +
+    ggplot2::geom_raster(ggplot2::aes(x = x, y = y, fill = value)) +
     ggplot2::scale_fill_gradient2(
-      low = "#b2182b",
-      mid = "white",
-      high = "#1a7f37",
+      low      = "#FF0000",
+      mid      = "white",
+      high     = "#00B300",
       midpoint = 0,
-      limits = limits,
+      limits   = limits,
       na.value = na_color,
-      name = "1000 ha"
+      name     = "1000 ha"
     ) +
     ggplot2::coord_equal(expand = FALSE) +
     theme_fdr_map() +
@@ -504,22 +487,32 @@ fdr_plot_downscaled_LUC <- function(
     )
 
   # ----------------------------
-  # BORDER
+  # Border + white mask outside
   # ----------------------------
   if (add_border) {
+    if (!is.null(border_sf)) {
+      raster_crs <- terra::crs(rasterized_layer)
+      border_use <- sf::st_transform(border_sf, crs = raster_crs)
+    } else {
+      r          <- terra::app(rasterized_layer, function(x) ifelse(is.na(x), NA, 1))
+      border_use <- sf::st_as_sf(terra::as.polygons(r, dissolve = TRUE))
+    }
 
-    r <- rasterized_layer
-    r[!is.na(r)] <- 1
-
-    country_border <- terra::as.polygons(r, dissolve = TRUE)
-    country_border <- sf::st_as_sf(country_border)
+    bbox_poly    <- sf::st_as_sfc(sf::st_bbox(border_use))
+    outside_poly <- sf::st_difference(bbox_poly, sf::st_union(border_use))
 
     p <- p +
       ggplot2::geom_sf(
-        data = country_border,
-        fill = NA,
-        color = "black",
-        linewidth = 0.5
+        data      = outside_poly,
+        fill      = "white",
+        color     = NA,
+        linewidth = 0
+      ) +
+      ggplot2::geom_sf(
+        data      = border_use,
+        fill      = NA,
+        color     = "grey60",
+        linewidth = 0.3
       )
   }
 
@@ -543,44 +536,45 @@ fdr_plot_downscaled_LUC <- function(
 
 # GHG (one aggregated map)
 
-fdr_plot_downscaled_GHG <- function(
+fdr_plot_downscaled_GHG_cum <- function(
     out_res,
     rasterized_layer,
     ns_map,
-    year                = NULL,
-    LU                  = NULL,
-    na_color            = "grey90",
-    add_border          = TRUE
+    border_sf  = NULL,
+    year       = c(2020, 2050),
+    LU         = NULL,
+    na_color   = "grey90",
+    add_border = TRUE
 ) {
-
   chk_required_cols(out_res, c("ns", "lu.to", "times", "GHG_biomass"))
-
   out_int <- fdr_to_ns_int(out_res, ns_map)
 
-  # ----------------------------
-  # Raster base
-  # ----------------------------
   df_pix <- terra::as.data.frame(rasterized_layer, xy = TRUE, na.rm = FALSE)
   names(df_pix)[3] <- "ns"
   df_pix <- dplyr::filter(df_pix, !is.na(ns))
 
-  # ----------------------------
-  # Aggregate GHG_biomass
-  # ----------------------------
   inputs <- out_int %>%
     dplyr::mutate(GHG_biomass = tidyr::replace_na(GHG_biomass, 0)) %>%
     dplyr::group_by(ns, lu.to, times) %>%
     dplyr::summarise(GHG_biomass = sum(GHG_biomass), .groups = "drop")
 
-  if (!is.null(LU))   inputs <- dplyr::filter(inputs, lu.to %in% LU)
-  if (!is.null(year)) inputs <- dplyr::filter(inputs, times %in% year)
+  if (!is.null(LU)) inputs <- dplyr::filter(inputs, lu.to %in% LU)
 
   # ----------------------------
-  # Sum GHG_biomass per ns x times (across all LU)
+  # CUMULATIVE sum over time for each pixel/region (ns).
   # ----------------------------
   inputs_agg <- inputs %>%
     dplyr::group_by(ns, times) %>%
-    dplyr::summarise(GHG_biomass = sum(GHG_biomass), .groups = "drop")
+    dplyr::summarise(GHG_biomass = sum(GHG_biomass), .groups = "drop") %>%
+    dplyr::arrange(ns, times) %>%
+    dplyr::group_by(ns) %>%
+    dplyr::mutate(GHG_biomass = cumsum(GHG_biomass)) %>%
+    dplyr::ungroup()
+
+  inputs_agg <- dplyr::filter(inputs_agg, times %in% year)
+
+  inputs_agg <- inputs_agg %>%
+    dplyr::mutate(times = factor(times, levels = sort(unique(as.numeric(as.character(times))))))
 
   # ----------------------------
   # Merge with raster grid
@@ -589,38 +583,150 @@ fdr_plot_downscaled_GHG <- function(
     dplyr::left_join(inputs_agg, by = "ns") %>%
     dplyr::filter(!is.na(GHG_biomass), !is.na(times))
 
-  # ----------------------------
-  # Plot
-  # ----------------------------
   p <- ggplot2::ggplot(plot_df) +
-    ggplot2::geom_raster(
-      ggplot2::aes(x = x, y = y, fill = GHG_biomass)
-    ) +
-    ggplot2::scale_fill_gradient(
-      low   = "#FFFFF0",   # ivory
-      high  = "#3B0057",   # deep purple
-      name  = "GHG biomass",
-      guide = ggplot2::guide_colorbar(barwidth = 8, barheight = 0.8)
+    ggplot2::geom_raster(ggplot2::aes(x = x, y = y, fill = GHG_biomass)) +
+    ggplot2::scale_fill_gradient2(
+      low      = "#1a7f37",
+      mid      = "white",
+      high     = "#b2182b",
+      midpoint = 0,
+      na.value = na_color,
+      name     = NULL,
+      guide    = ggplot2::guide_colorbar(barwidth = 8, barheight = 0.8)
     ) +
     ggplot2::coord_equal(expand = FALSE) +
     theme_fdr_map() +
-    ggplot2::facet_grid(times ~ ., labeller = ggplot2::label_value)
+    ggplot2::facet_grid(. ~ times, labeller = ggplot2::label_value)
 
   # ----------------------------
-  # Border
+  # Border + white mask outside
   # ----------------------------
   if (add_border) {
-    r      <- terra::app(rasterized_layer, function(x) ifelse(is.na(x), NA, 1))
-    border <- sf::st_as_sf(terra::as.polygons(r, dissolve = TRUE))
+    if (!is.null(border_sf)) {
+      raster_crs <- terra::crs(rasterized_layer)
+      border_use <- sf::st_transform(border_sf, crs = raster_crs)
+    } else {
+      r          <- terra::app(rasterized_layer, function(x) ifelse(is.na(x), NA, 1))
+      border_use <- sf::st_as_sf(terra::as.polygons(r, dissolve = TRUE))
+    }
+
+    bbox_poly    <- sf::st_as_sfc(sf::st_bbox(border_use))
+    outside_poly <- sf::st_difference(bbox_poly, sf::st_union(border_use))
 
     p <- p +
       ggplot2::geom_sf(
-        data      = border,
+        data      = outside_poly,
+        fill      = "white",
+        color     = NA,
+        linewidth = 0
+      ) +
+      ggplot2::geom_sf(
+        data      = border_use,
         fill      = NA,
-        color     = "black",
-        linewidth = 0.5
+        color     = "grey60",
+        linewidth = 0.3
       )
   }
 
   return(p)
 }
+
+# -----------------------------------------------------------------------------
+#' Plot downscaled GHG emissions
+#'
+#' @param out_res results table (typically fdr_run_downscaling()$out.res or $downscaled_LUC)
+#' must have: ns, lu.to, times, value
+#' @param rasterized_layer SpatRaster with ns_int values (from fdr_build_id_maps())
+#' @param ns_map id_c -> ns_int mapping (from fdr_build_ns_map())
+#' @param border_sf
+#' @param year
+#' @param LU
+#' @param na_color fill color for NA pixels
+#' @param add_border
+#' @export
+# -----------------------------------------------------------------------------
+
+fdr_plot_downscaled_GHG <- function(
+    out_res,
+    rasterized_layer,
+    ns_map,
+    border_sf  = NULL,
+    year       = NULL,
+    LU         = NULL,
+    na_color   = "grey90",
+    add_border = TRUE
+) {
+  chk_required_cols(out_res, c("ns", "lu.to", "times", "GHG_biomass"))
+  out_int <- fdr_to_ns_int(out_res, ns_map)
+
+  df_pix <- terra::as.data.frame(rasterized_layer, xy = TRUE, na.rm = FALSE)
+  names(df_pix)[3] <- "ns"
+  df_pix <- dplyr::filter(df_pix, !is.na(ns))
+
+  inputs <- out_int %>%
+    dplyr::mutate(GHG_biomass = tidyr::replace_na(GHG_biomass, 0)) %>%
+    dplyr::group_by(ns, lu.to, times) %>%
+    dplyr::summarise(GHG_biomass = sum(GHG_biomass), .groups = "drop")
+
+  if (!is.null(LU))   inputs <- dplyr::filter(inputs, lu.to %in% LU)
+  if (!is.null(year)) inputs <- dplyr::filter(inputs, times %in% year)
+
+  inputs_agg <- inputs %>%
+    dplyr::group_by(ns, times) %>%
+    dplyr::summarise(GHG_biomass = sum(GHG_biomass), .groups = "drop")
+
+  inputs_agg <- inputs_agg %>%
+    dplyr::mutate(times = factor(times, levels = sort(unique(as.numeric(as.character(times))))))
+
+  plot_df <- df_pix %>%
+    dplyr::left_join(inputs_agg, by = "ns") %>%
+    dplyr::filter(!is.na(GHG_biomass), !is.na(times))
+
+  p <- ggplot2::ggplot(plot_df) +
+    ggplot2::geom_raster(ggplot2::aes(x = x, y = y, fill = GHG_biomass)) +
+    ggplot2::scale_fill_gradient2(
+      low      = "#1a7f37",
+      mid      = "white",
+      high     = "#b2182b",
+      midpoint = 0,
+      na.value = na_color,
+      name     = NULL,   # legend title removed
+      guide    = ggplot2::guide_colorbar(barwidth = 8, barheight = 0.8)
+    ) +
+    ggplot2::coord_equal(expand = FALSE) +
+    theme_fdr_map() +
+    ggplot2::facet_grid(. ~ times, labeller = ggplot2::label_value)
+
+  # ----------------------------
+  # Border + white mask outside
+  # ----------------------------
+  if (add_border) {
+    if (!is.null(border_sf)) {
+      raster_crs <- terra::crs(rasterized_layer)
+      border_use <- sf::st_transform(border_sf, crs = raster_crs)
+    } else {
+      r          <- terra::app(rasterized_layer, function(x) ifelse(is.na(x), NA, 1))
+      border_use <- sf::st_as_sf(terra::as.polygons(r, dissolve = TRUE))
+    }
+
+    bbox_poly    <- sf::st_as_sfc(sf::st_bbox(border_use))
+    outside_poly <- sf::st_difference(bbox_poly, sf::st_union(border_use))
+
+    p <- p +
+      ggplot2::geom_sf(
+        data      = outside_poly,
+        fill      = "white",
+        color     = NA,
+        linewidth = 0
+      ) +
+      ggplot2::geom_sf(
+        data      = border_use,
+        fill      = NA,
+        color     = "grey60",
+        linewidth = 0.3
+      )
+  }
+
+  return(p)
+}
+
