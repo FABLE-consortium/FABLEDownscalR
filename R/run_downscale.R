@@ -424,10 +424,14 @@ fdr_run_downscaling <- function(
     stop("fdr_run_downscaling(): `country_iso3` must be supplied (e.g. 'UZB').")
   }
 
+  grid <- read_csv("Data/global/grid50_equal_area.csv")
+
   EF_Pools_transition_Ecoregion <- read_csv("Data/EF_Pools_transition_Ecoregion.csv") %>%
     filter(iso3 == country_iso3) %>%
     mutate(to = (ifelse(to == "forest", "newforest", to))) %>%
-    mutate(ef_biomass = (ifelse(to =="newforest", ef_biomass/50, ef_biomass)))
+    mutate(ef_biomass = (ifelse(to =="newforest", ef_biomass/50, ef_biomass))) %>%
+    left_join(grid %>% select(iso3, ECO_NAME, id_c), relationship = "many-to-many") %>%
+    filter(!is.na(ECO_NAME))
 
 
   if (nrow(EF_Pools_transition_Ecoregion) == 0) {
