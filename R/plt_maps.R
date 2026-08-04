@@ -148,7 +148,7 @@ fdr_plot_downscaled_LU_one <- function(
       .groups   = "drop"
     ) %>%
     dplyr::mutate(
-      has_secondary = dominance < dominance_threshold & !is.na(top2)
+      has_secondary = dominance < 0.3 & !is.na(top2)
     )
 
   # Keep facet order 2020 -> 2050 regardless of factor/character type
