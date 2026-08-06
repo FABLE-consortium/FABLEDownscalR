@@ -24,7 +24,8 @@ fdr_load_inputs <- function(
     pathway,
     spatial_registry = NULL,
     mapping_registry = NULL,
-    grid_filename = file.path("global", "grid50_equal_area.csv")
+    grid_filename = file.path("global", "grid50_equal_area.csv"),
+    EF_filename = file.path("global", "EF_Pools_transition_Cell.rds")
 ) {
 
   start_map_source <- toupper(trimws(start_map_source))
@@ -144,6 +145,15 @@ fdr_load_inputs <- function(
     stop("Cannot build grid_sp because travel layer is missing. Provide TravelTime.geojson or pass a grid geometry.")
   }
 
+  # ---- Emissions factor from land use change ----
+  EF_pools <- file.path(data_root, EF_filename)
+  if (!file.exists(EF_pools)) stop("Grid file not found: ", EF_pools)
+
+  EF_LUC <- readRDS(EF_pools) %>%
+    dplyr::filter(iso3 == country) %>%
+    dplyr::mutate(id_c = as.character(id_c))
+
+
   list(
     spatial       = spatial,
     mapping       = mapping,
@@ -151,6 +161,7 @@ fdr_load_inputs <- function(
     grid_sp       = grid_sp,
     LC_targets    = LC_targets,
     FABLE_targets = FABLE_targets,
+    DF_LUC        = EF_LUC,
     meta = list(
       country_dir   = country_dir,
       mapping_file  = map_fp,
