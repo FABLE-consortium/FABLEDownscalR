@@ -161,7 +161,7 @@ fdr_load_inputs <- function(
     grid_sp       = grid_sp,
     LC_targets    = LC_targets,
     FABLE_targets = FABLE_targets,
-    DF_LUC        = EF_LUC,
+    EF_LUC        = EF_LUC,
     meta = list(
       country_dir   = country_dir,
       mapping_file  = map_fp,
