@@ -31,6 +31,7 @@
 #' @param priors Output of fdr_build_priors()
 #' @param mnl_niter Number of MCMC iterations
 #' @param mnl_nburn Burn-in iterations
+#' @param EF_LUC Emissions factors associated with each land use transition in each cells
 #'
 #' @return List with:
 #'   - downscaled_LUC
@@ -45,7 +46,7 @@ fdr_run_downscaling <- function(
     priors,
     mnl_niter = 100,
     mnl_nburn = 50,
-    country_iso3
+    EF_LUC
 ) {
 
   if (!requireNamespace("downscalr", quietly = TRUE)) {
@@ -414,37 +415,25 @@ fdr_run_downscaling <- function(
   # ---------------------------------------------------------------------------
   # 5) Computing GHG due to Land use change by ecoregion
   # ---------------------------------------------------------------------------
-  library(readxl)
-  library(readr)
-  # EF_Pools_transition_Ecoregion <- read_csv("Data/EF_Pools_transition_Ecoregion.csv") %>%
-  #   filter(iso3 == "UZB") # Need to update according to the country
 
 
-  if (missing(country_iso3) || is.null(country_iso3) || !nzchar(country_iso3)) {
-    stop("fdr_run_downscaling(): `country_iso3` must be supplied (e.g. 'UZB').")
-  }
-
-  grid <- read_csv("Data/global/grid50_equal_area.csv")
-
-  EF_Pools_transition_Ecoregion <- read_csv("Data/EF_Pools_transition_Ecoregion.csv") %>%
-    filter(iso3 == country_iso3) %>%
+  EF_Pools_transition_Ecoregion <- EF_LUC %>%
     mutate(to = (ifelse(to == "forest", "newforest", to))) %>%
     mutate(ef_biomass = (ifelse(to =="newforest", ef_biomass/50, ef_biomass))) %>%
-    left_join(grid %>% select(iso3, ECO_NAME, id_c), relationship = "many-to-many") %>%
+    # left_join(grid %>% select(iso3, ECO_NAME, id_c), relationship = "many-to-many") %>%
     filter(!is.na(ECO_NAME))
 
-
-  if (nrow(EF_Pools_transition_Ecoregion) == 0) {
-    stop("No rows found in EF_Pools_transition_Ecoregion.csv for iso3 = '", country_iso3, "'.")
-  }
-
-
+  #
+  # if (nrow(EF_Pools_transition_Ecoregion) == 0) {
+  #   stop("No rows found in EF_Pools_transition_Ecoregion.csv for iso3 = '", country_iso3, "'.")
+  # }
 
   results$out.res <- results$out.res %>%
     left_join(EF_Pools_transition_Ecoregion %>%
                 select(id_c, from, to, ef_biomass),
               by = c("ns" ="id_c", "lu.from" = "from", "lu.to" = "to")
     ) %>%
+    #GHG_biomass in MtCO2
     mutate(GHG_biomass = ef_biomass * value * 3.667 / 1000)
 
 
@@ -452,7 +441,7 @@ fdr_run_downscaling <- function(
   # 6) Return clean outputs to the workflow
   # ---------------------------------------------------------------------------
   list(
-    out.res            = results$out.res,
+    out.res             = results$out.res,
     downscaled_LUC      = results$out.res,
     X_long              = X_long,
     pred_coeff_long     = pred_coeff_long,
