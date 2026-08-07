@@ -70,6 +70,8 @@ theme_fdr_map <- function(base_size = 11) {
 
       strip.placement = "outside",
 
+      strip.clip = "off",
+
       # -----------------------
       # Map style
       # -----------------------
@@ -341,7 +343,7 @@ fdr_plot_downscaled_LU <- function(
         data = country_border,
         fill = NA,
         color = "black",
-        linewidth = 0.5
+        linewidth = 0.1
       )
   }
 
@@ -411,8 +413,8 @@ fdr_plot_downscaled_LUC <- function(
   lu_labels <- c(
     cropland  = "Cropland",
     forest    = "Forest",
-    newforest = "New forest",
-    otherland = "Other land",
+    newforest = "New\nforest",
+    otherland = "Other\nland",
     pasture   = "Pasture",
     urban     = "Urban"
   )
