@@ -304,7 +304,8 @@ fdr_plot_downscaled_LU <- function(
     dplyr::filter(!is.na(lu.to), !is.na(times))
 
   lu_order <- c("newforest", "cropland", "otherland", "forest", "pasture")
-  plot_df$lu.to <- factor(plot_df$lu.to, levels = lu_order)
+  plot_df <- plot_df %>% dplyr::filter(lu.to %in% lu_order)
+  plot_df$lu.to <- droplevels(factor(plot_df$lu.to, levels = lu_order))
 
   lu_present <- lu_order[lu_order %in% as.character(plot_df$lu.to)]
 
@@ -318,7 +319,8 @@ fdr_plot_downscaled_LU <- function(
       low = "white",
       high = "darkgreen",
       limits = limits,
-      na.value = na_color
+      na.value = na_color,
+      name = "1000 ha"
     ) +
     #ggplot2::labs(title = "")
     ggplot2::coord_equal(expand = FALSE) +
@@ -543,7 +545,7 @@ fdr_plot_downscaled_GHG_cum <- function(
       high     = "#b2182b",
       midpoint = 0,
       na.value = na_color,
-      name     = NULL,
+      name     = "Cumulative CO2\nemissions/sequestration\nper cells\n(Mt CO2)",
       guide    = ggplot2::guide_colorbar(barwidth = 8, barheight = 0.8)
     ) +
     ggplot2::coord_equal(expand = FALSE) +
@@ -643,7 +645,7 @@ fdr_plot_downscaled_GHG <- function(
       high     = "#b2182b",
       midpoint = 0,
       na.value = na_color,
-      name     = NULL,   # legend title removed
+      name     = "CO2 emissions/sequestration\nper cells (Mt CO2/ 5 year period)",
       guide    = ggplot2::guide_colorbar(barwidth = 8, barheight = 0.8)
     ) +
     ggplot2::coord_equal(expand = FALSE) +
