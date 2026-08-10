@@ -500,7 +500,8 @@ fdr_plot_downscaled_GHG_cum <- function(
     year       = c(2020, 2050),
     LU         = NULL,
     na_color   = "grey90",
-    add_border = TRUE
+    add_border = TRUE,
+    limits     = NULL
 ) {
   chk_required_cols(out_res, c("ns", "lu.to", "times", "GHG_biomass"))
   out_int <- fdr_to_ns_int(out_res, ns_map)
@@ -539,6 +540,11 @@ fdr_plot_downscaled_GHG_cum <- function(
     dplyr::left_join(inputs_agg, by = "ns") %>%
     dplyr::filter(!is.na(GHG_biomass), !is.na(times))
 
+  if (is.null(limits)) {
+    max_abs <- max(abs(plot_df$value), na.rm = TRUE)
+    limits  <- c(-max_abs, max_abs)
+  }
+
   p <- ggplot2::ggplot(plot_df) +
     ggplot2::geom_raster(ggplot2::aes(x = x, y = y, fill = GHG_biomass)) +
     ggplot2::scale_fill_gradient2(
@@ -546,6 +552,7 @@ fdr_plot_downscaled_GHG_cum <- function(
       mid      = "white",
       high     = "#b2182b",
       midpoint = 0,
+      limits   = limits,
       na.value = na_color,
       name     = "Cumulative CO2\nemissions/sequestration\nper cells\n(Mt CO2)",
       guide    = ggplot2::guide_colorbar(barwidth = 8, barheight = 0.8)
@@ -609,6 +616,7 @@ fdr_plot_downscaled_GHG <- function(
     ns_map,
     border_sf  = NULL,
     year       = NULL,
+    limits     = NULL,
     LU         = NULL,
     na_color   = "grey90",
     add_border = TRUE
@@ -639,12 +647,18 @@ fdr_plot_downscaled_GHG <- function(
     dplyr::left_join(inputs_agg, by = "ns") %>%
     dplyr::filter(!is.na(GHG_biomass), !is.na(times))
 
+  if (is.null(limits)) {
+    max_abs <- max(abs(plot_df$value), na.rm = TRUE)
+    limits  <- c(-max_abs, max_abs)
+  }
+
   p <- ggplot2::ggplot(plot_df) +
     ggplot2::geom_raster(ggplot2::aes(x = x, y = y, fill = GHG_biomass)) +
     ggplot2::scale_fill_gradient2(
       low      = "#1a7f37",
       mid      = "white",
       high     = "#b2182b",
+      limits   = limits,
       midpoint = 0,
       na.value = na_color,
       name     = "CO2 emissions/sequestration\nper cells (Mt CO2/ 5 year period)",
@@ -687,5 +701,123 @@ fdr_plot_downscaled_GHG <- function(
   list(plot = p,
        GHG = inputs_agg,
        inputs = inputs)
+}
+
+# -----------------------------------------------------------------------------
+#' Plot downscaled GHG emissions per final land use
+#'
+#' @param out_res results table (typically fdr_run_downscaling()$out.res or $downscaled_LUC)
+#' must have: ns, lu.to, times, value
+#' @param rasterized_layer SpatRaster with ns_int values (from fdr_build_id_maps())
+#' @param ns_map id_c -> ns_int mapping (from fdr_build_ns_map())
+#' @param border_sf
+#' @param year
+#' @param LU
+#' @param na_color fill color for NA pixels
+#' @param add_border
+#' @export
+# -----------------------------------------------------------------------------
+
+
+fdr_plot_downscaled_GHG_transition <- function(
+    out_res,
+    rasterized_layer,
+    ns_map,
+    border_sf  = NULL,
+    year       = NULL,
+    limits     = NULL,
+    LU         = NULL,
+    na_color   = "grey90",
+    add_border = TRUE
+) {
+  chk_required_cols(out_res, c("ns", "lu.to", "times", "GHG_biomass"))
+  out_int <- fdr_to_ns_int(out_res, ns_map)
+
+  df_pix <- terra::as.data.frame(rasterized_layer, xy = TRUE, na.rm = FALSE)
+  names(df_pix)[3] <- "ns"
+  df_pix <- dplyr::filter(df_pix, !is.na(ns))
+
+  inputs <- out_int %>%
+    dplyr::mutate(GHG_biomass = tidyr::replace_na(GHG_biomass, 0)) %>%
+    dplyr::group_by(ns, lu.to, times) %>%
+    dplyr::summarise(GHG_biomass = sum(GHG_biomass), .groups = "drop") %>%
+    dplyr::mutate(times = factor(times, levels = sort(unique(as.numeric(as.character(times))))))
+
+
+  if (!is.null(LU))   inputs <- dplyr::filter(inputs, lu.to %in% LU)
+  if (!is.null(year)) inputs <- dplyr::filter(inputs, times %in% year)
+
+
+  plot_df <- df_pix %>%
+    dplyr::left_join(inputs, by = c("ns")) %>%
+    dplyr::filter(!is.na(GHG_biomass), !is.na(times))
+
+  if (is.null(limits)) {
+    max_abs <- max(abs(plot_df$GHG_biomass), na.rm = TRUE)
+    limits  <- c(-max_abs, max_abs)
+  }
+
+  lu_order <- c("cropland", "newforest", "otherland", "pasture", "forest", "urban")
+  plot_df$lu.to <- factor(plot_df$lu.to, levels = lu_order)
+  lu_labels <- c(
+    cropland  = "Cropland",
+    forest    = "Forest",
+    newforest = "New\nforest",
+    otherland = "Other\nland",
+    pasture   = "Pasture",
+    urban     = "Urban"
+  )
+
+  p <- ggplot2::ggplot(plot_df) +
+    ggplot2::geom_raster(ggplot2::aes(x = x, y = y, fill = GHG_biomass)) +
+    ggplot2::scale_fill_gradient2(
+      low      = "#1a7f37",
+      mid      = "white",
+      high     = "#b2182b",
+      limits   = limits,
+      midpoint = 0,
+      na.value = na_color,
+      name     = "CO2 emissions/sequestration\nper cells (Mt CO2/ 5 year period)",
+      guide    = ggplot2::guide_colorbar(barwidth = 8, barheight = 0.8)
+    ) +
+    ggplot2::coord_equal(expand = FALSE) +
+    theme_fdr_map() +
+    ggplot2::facet_grid(
+      times ~ lu.to,
+      labeller = ggplot2::labeller(lu.to = lu_labels)
+    )
+
+  # ----------------------------
+  # Border + white mask outside
+  # ----------------------------
+  if (add_border) {
+    if (!is.null(border_sf)) {
+      raster_crs <- terra::crs(rasterized_layer)
+      border_use <- sf::st_transform(border_sf, crs = raster_crs)
+    } else {
+      r          <- terra::app(rasterized_layer, function(x) ifelse(is.na(x), NA, 1))
+      border_use <- sf::st_as_sf(terra::as.polygons(r, dissolve = TRUE))
+    }
+
+    bbox_poly    <- sf::st_as_sfc(sf::st_bbox(border_use))
+    outside_poly <- sf::st_difference(bbox_poly, sf::st_union(border_use))
+
+    p <- p +
+      ggplot2::geom_sf(
+        data      = outside_poly,
+        fill      = "white",
+        color     = NA,
+        linewidth = 0
+      ) +
+      ggplot2::geom_sf(
+        data      = border_use,
+        fill      = NA,
+        color     = "grey60",
+        linewidth = 0.3
+      )
+  }
+
+  list(plot = p,
+       GHG = inputs)
 }
 
