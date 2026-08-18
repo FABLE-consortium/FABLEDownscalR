@@ -541,7 +541,7 @@ fdr_plot_downscaled_GHG_cum <- function(
     dplyr::filter(!is.na(GHG_biomass), !is.na(times))
 
   if (is.null(limits)) {
-    max_abs <- max(abs(plot_df$value), na.rm = TRUE)
+    max_abs <- max(abs(plot_df$GHG_biomass), na.rm = TRUE)
     limits  <- c(-max_abs, max_abs)
   }
 
