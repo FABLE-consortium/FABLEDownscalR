@@ -11,7 +11,8 @@ fdr_load_inputs(
   pathway,
   spatial_registry = NULL,
   mapping_registry = NULL,
-  grid_filename = file.path("global", "grid50_equal_area.csv")
+  grid_filename = file.path("global", "grid50_equal_area.csv"),
+  EF_filename = file.path("global", "EF_Pools_transition_Cell.rds")
 )
 }
 \arguments{
