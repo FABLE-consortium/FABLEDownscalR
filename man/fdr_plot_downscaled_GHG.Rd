@@ -2,13 +2,15 @@
 % Please edit documentation in R/plt_maps.R
 \name{fdr_plot_downscaled_GHG}
 \alias{fdr_plot_downscaled_GHG}
-\title{Plot downscaled results on an ID raster (facet by time and origins)}
+\title{Plot downscaled GHG emissions}
 \usage{
 fdr_plot_downscaled_GHG(
   out_res,
   rasterized_layer,
   ns_map,
+  border_sf = NULL,
   year = NULL,
+  limits = NULL,
   LU = NULL,
   na_color = "grey90",
   add_border = TRUE
@@ -25,5 +27,5 @@ must have: ns, lu.to, times, value}
 \item{na_color}{fill color for NA pixels}
 }
 \description{
-Plot downscaled results on an ID raster (facet by time and origins)
+Plot downscaled GHG emissions
 }

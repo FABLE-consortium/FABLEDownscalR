@@ -8,6 +8,7 @@ fdr_plot_downscaled_LUC(
   out_res,
   rasterized_layer,
   ns_map,
+  border_sf = NULL,
   year = NULL,
   LU = NULL,
   limits = NULL,
