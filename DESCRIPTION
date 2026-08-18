@@ -28,7 +28,8 @@ Imports:
     yaml,
     tibble,
     forcats,
-    ggpattern
+    ggpattern,
+    downscalr
 Remotes:
     tkrisztin/downscalr
 Suggests:
