@@ -102,7 +102,12 @@ fdr_load_inputs <- function(
     }
   }
 
-  spatial$landcover <- if (start_map_source == "HILDA") spatial$landcoverHILDA else spatial$landcoverCopernicus
+  spatial$landcoverinitial  <- if (start_map_source == "HILDA") spatial$landcoverHILDA else
+    if (start_map_source == "COPERNICUS") spatial$landcoverCopernicus else
+      spatial$landcoverInitialESACCI
+  spatial$landcoverstarting <- if (start_map_source == "HILDA") spatial$landcoverHILDA else
+    if (start_map_source == "COPERNICUS") spatial$landcoverCopernicus else
+      spatial$landcoverStartingESACCI
 
   # ---- mapping ----
   map_fp <- file.path(data_root, "mapping_code.xlsx")
