@@ -124,7 +124,7 @@ fdr_load_inputs <- function(
     mapping[[nm]] <- readxl::read_excel(map_fp, sheet = sh)
   }
 
-  mapping$map_LUC <- if (start_map_source == "HILDA") mapping$map_HILDA_LUC else mapping$ma_ESACCI_LUC
+  mapping$map_LUC <- if (start_map_source == "HILDA") mapping$map_HILDA_LUC else mapping$map_ESACCI_LUC
   mapping$map_LC  <- if (start_map_source == "HILDA") mapping$map_HILDA else
     if (start_map_source == "HILDA") mapping$map_Copernicus else
       mapping$map_ESACCI
