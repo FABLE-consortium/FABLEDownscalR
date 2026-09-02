@@ -420,6 +420,7 @@ fdr_run_downscaling <- function(
   EF_Pools_transition_Ecoregion <- EF_LUC %>%
     mutate(to = (ifelse(to == "forest", "newforest", to))) %>%
     mutate(ef_biomass = (ifelse(to =="newforest", ef_biomass/50, ef_biomass))) %>%
+    mutate(ef_biomass = (ifelse(to =="otherland", ef_biomass/80, ef_biomass))) %>%
     # left_join(grid %>% select(iso3, ECO_NAME, id_c), relationship = "many-to-many") %>%
     filter(!is.na(ECO_NAME))
 
