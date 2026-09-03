@@ -13,7 +13,7 @@ fdr_validate_inputs <- function(inputs) {
          "\nCheck Data/<country>/ filenames.")
   }
 
-  must_have_maps <- c("map_HILDA_LUC")
+  must_have_maps <- c("map_HILDA_LUC", "map_ESACCI_LUC")
   missing_mp <- must_have_maps[vapply(must_have_maps, function(x) is.null(inputs$mapping[[x]]), logical(1))]
   if (length(missing_mp) > 0) stop("Missing required mapping sheets: ", paste(missing_mp, collapse = ", "))
 

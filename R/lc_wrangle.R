@@ -10,21 +10,21 @@
 #' Build country land-use transition table (DownscalR/FABLE format)
 #'
 #' @param LandCoverChange_df Wide table: id_c + X<code> columns
-#' @param map_HILDA_LUC Mapping table with columns code, from, to
+#' @param map_LUC Mapping table with columns code, from, to
 #' @param expected_lu Expected land-use names
 #' @param Ts Baseline year of transition shares
 #'
 #' @return list(country_luc = df, missing = list(missing_from, missing_to))
 #' @export
 lc_build_country_luc <- function(LandCoverChange_df,
-                                 map_HILDA_LUC,
+                                 map_LUC,
                                  expected_lu = c("cropland","forest","newforest","otherland","pasture","urban"),
                                  Ts = 2015) {
 
   LandCoverChange_df <- dplyr::mutate(LandCoverChange_df, id_c = as.character(id_c))
 
   chk_required_cols(LandCoverChange_df, "id_c")
-  chk_required_cols(map_HILDA_LUC, c("code","from","to"))
+  chk_required_cols(map_LUC, c("code","from","to"))
 
   # ---- wide -> long ----
   luc_long <- LandCoverChange_df %>%
@@ -33,10 +33,10 @@ lc_build_country_luc <- function(LandCoverChange_df,
       name = stringr::str_remove(name, "X"),
       AreaPerCode = as.numeric(AreaPerCode)
     ) %>%
-    dplyr::left_join(map_HILDA_LUC %>% dplyr::mutate(code = as.character(code)),
+    dplyr::left_join(map_LUC %>% dplyr::mutate(code = as.character(code)),
                      by = c("name" = "code")) %>%
-    dplyr::filter(!(from %in% c("ocean", "water", "not relevant"))) %>%
-    dplyr::filter(!(to   %in% c("ocean", "water", "not relevant")))
+    dplyr::filter(!(from %in% c("ocean", "water", "not relevant", "other"))) %>%
+    dplyr::filter(!(to   %in% c("ocean", "water", "not relevant", "other")))
 
   luc_long <- luc_long %>%
     dplyr::filter(!is.na(from), !is.na(to))

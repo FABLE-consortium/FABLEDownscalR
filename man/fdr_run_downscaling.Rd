@@ -9,7 +9,8 @@ fdr_run_downscaling(
   country_luc,
   priors,
   mnl_niter = 100,
-  mnl_nburn = 50
+  mnl_nburn = 50,
+  EF_LUC
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ fdr_run_downscaling(
 \item{mnl_niter}{Number of MCMC iterations}
 
 \item{mnl_nburn}{Burn-in iterations}
+
+\item{EF_LUC}{Emissions factors associated with each land use transition in each cells}
 }
 \value{
 List with:

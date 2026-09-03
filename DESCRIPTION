@@ -27,7 +27,9 @@ Imports:
     rlang,
     yaml,
     tibble,
-    forcats
+    forcats,
+    ggpattern,
+    downscalr
 Remotes:
     tkrisztin/downscalr
 Suggests:

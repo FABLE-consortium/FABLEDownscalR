@@ -20,15 +20,16 @@
 fdr_load_inputs <- function(
     data_root,
     country,
-    start_map_source = c("HILDA", "COPERNICUS"),
+    start_map_source = c("HILDA", "COPERNICUS", "ESACCI"),
     pathway,
     spatial_registry = NULL,
     mapping_registry = NULL,
-    grid_filename = file.path("global", "grid50_equal_area.csv")
+    grid_filename = file.path("global", "grid50_equal_area.csv"),
+    EF_filename = file.path("global", "EF_Pools_transition_Cell.rds")
 ) {
 
   start_map_source <- toupper(trimws(start_map_source))
-  start_map_source <- match.arg(start_map_source, choices = c("HILDA", "COPERNICUS"))
+  start_map_source <- match.arg(start_map_source, choices = c("HILDA", "COPERNICUS", "ESACCI"))
 
   # ---- default registries ----
   if (is.null(spatial_registry)) {
@@ -39,7 +40,10 @@ fdr_load_inputs <- function(
       "travel",              "TravelTime.geojson",
       "landcoverHILDA",      "LandCoverHILDA2015.geojson",
       "landcoverCopernicus", "LandCoverCopernicus2019.geojson",
-      "landcoverchange",     "LandCoverChangeHILDA2015_2019.geojson",
+      "landcoverInitialESACCI",      "LandCoverESACCI2015.geojson",
+      "landcoverStartingESACCI",      "LandCoverESACCI2020.geojson",
+      #"landcoverchange",     "LandCoverChangeHILDA2015_2019.geojson",
+      "landcoverchange",     "LandCoverChangeESACCI2015_2020.geojson",
       "forestmanagement",    "ForestManagement.geojson",
       "altitude",            "Altitude.geojson",
       "slope",               "Slope.geojson",
@@ -55,7 +59,9 @@ fdr_load_inputs <- function(
       "map_HILDA_LUC",       "HILDA_change",
       "map_Copernicus",      "Copernicus",
       "map_ForestMgmt",      "ForestManagement",
-      "map_protectedareas",  "ProtectedAreas"
+      "map_protectedareas",  "ProtectedAreas",
+      "map_ESACCI",          "ESACCI",
+      "map_ESACCI_LUC",      "ESACCI_change"
     )
   }
 
@@ -96,7 +102,12 @@ fdr_load_inputs <- function(
     }
   }
 
-  spatial$landcover <- if (start_map_source == "HILDA") spatial$landcoverHILDA else spatial$landcoverCopernicus
+  spatial$landcoverinitial  <- if (start_map_source == "HILDA") spatial$landcoverHILDA else
+    if (start_map_source == "COPERNICUS") spatial$landcoverCopernicus else
+      spatial$landcoverInitialESACCI
+  spatial$landcoverstarting <- if (start_map_source == "HILDA") spatial$landcoverHILDA else
+    if (start_map_source == "COPERNICUS") spatial$landcoverCopernicus else
+      spatial$landcoverStartingESACCI
 
   # ---- mapping ----
   map_fp <- file.path(data_root, "mapping_code.xlsx")
@@ -113,8 +124,10 @@ fdr_load_inputs <- function(
     mapping[[nm]] <- readxl::read_excel(map_fp, sheet = sh)
   }
 
-  mapping$map_LUC <- mapping$map_HILDA_LUC
-  mapping$map_LC  <- if (start_map_source == "HILDA") mapping$map_HILDA else mapping$map_Copernicus
+  mapping$map_LUC <- if (start_map_source == "HILDA") mapping$map_HILDA_LUC else mapping$map_ESACCI_LUC
+  mapping$map_LC  <- if (start_map_source == "HILDA") mapping$map_HILDA else
+    if (start_map_source == "HILDA") mapping$map_Copernicus else
+      mapping$map_ESACCI
 
   # ---- FABLE inputs ----
   fable_fp <- file.path(country_dir, "FABLE.xlsx")
@@ -144,6 +157,15 @@ fdr_load_inputs <- function(
     stop("Cannot build grid_sp because travel layer is missing. Provide TravelTime.geojson or pass a grid geometry.")
   }
 
+  # ---- Emissions factor from land use change ----
+  EF_pools <- file.path(data_root, EF_filename)
+  if (!file.exists(EF_pools)) stop("Grid file not found: ", EF_pools)
+
+  EF_LUC <- readRDS(EF_pools) %>%
+    dplyr::filter(iso3 == country) %>%
+    dplyr::mutate(id_c = as.character(id_c))
+
+
   list(
     spatial       = spatial,
     mapping       = mapping,
@@ -151,6 +173,7 @@ fdr_load_inputs <- function(
     grid_sp       = grid_sp,
     LC_targets    = LC_targets,
     FABLE_targets = FABLE_targets,
+    EF_LUC        = EF_LUC,
     meta = list(
       country_dir   = country_dir,
       mapping_file  = map_fp,

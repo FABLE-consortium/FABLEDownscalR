@@ -77,6 +77,7 @@ fdr_save_outputs <- function(
   if (!is.null(outputs$betas))               save_rds(outputs$betas,            "pred_coeff_long")
   if (!is.null(outputs$country_start_areas)) save_rds(outputs$country_start_areas, "country_start_areas")
   if (!is.null(outputs$downscaled_LUC))      save_rds(outputs$downscaled_LUC,   "downscaled_LUC")
+  if (!is.null(outputs$luc_hist))            save_rds(outputs$luc_hist,   "luc_hist")
 
   # rasterized layer -> GeoTIFF
   if (!is.null(outputs$rasterized_layer)) {
