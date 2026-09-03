@@ -343,7 +343,7 @@ fdr_plot_downscaled_LU <- function(
         data = country_border,
         fill = NA,
         color = "black",
-        linewidth = 0.1
+        linewidth = 0.5
       )
   }
 
