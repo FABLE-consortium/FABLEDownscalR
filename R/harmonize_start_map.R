@@ -19,18 +19,23 @@
 #' @return list(start_map, start_map_harm, start_map_reproj, LC_targets, LUC_targets, CLC_shares, ns_map)
 #' @export
 fdr_harmonize_start_map <- function(
-    LandCover_df,
+    LandCoverInitial_df,
+    LandCoverStarting_df,
+    type,
     map_LC,
     LC_targets,
     keep_areas = "from",
     id_col = "id_c",
     area_unit_factor = 1/10
 ) {
+
+  if(type == "initial")  LandCover_df <- dplyr::mutate(LandCoverInitial_df, !!id_col := as.character(.data[[id_col]])) else
+    LandCover_df <- dplyr::mutate(LandCoverStarting_df, !!id_col := as.character(.data[[id_col]]))
+
   chk_required_cols(LandCover_df, id_col)
   chk_required_cols(map_LC, "code")
   chk_required_cols(LC_targets, c("lu","value"))
 
-  LandCover_df <- dplyr::mutate(LandCover_df, !!id_col := as.character(.data[[id_col]]))
 
   # ---- 1) Build spatial baseline start_map: ns x lu.from x value ----
   # Assumes LandCover_df has columns like X12, X45... that map_LC$code matches

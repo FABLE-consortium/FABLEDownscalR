@@ -20,7 +20,7 @@
 fdr_load_inputs <- function(
     data_root,
     country,
-    start_map_source = c("HILDA", "COPERNICUS"),
+    start_map_source = c("HILDA", "COPERNICUS", "ESACCI"),
     pathway,
     spatial_registry = NULL,
     mapping_registry = NULL,
@@ -29,7 +29,7 @@ fdr_load_inputs <- function(
 ) {
 
   start_map_source <- toupper(trimws(start_map_source))
-  start_map_source <- match.arg(start_map_source, choices = c("HILDA", "COPERNICUS"))
+  start_map_source <- match.arg(start_map_source, choices = c("HILDA", "COPERNICUS", "ESACCI"))
 
   # ---- default registries ----
   if (is.null(spatial_registry)) {
@@ -40,7 +40,10 @@ fdr_load_inputs <- function(
       "travel",              "TravelTime.geojson",
       "landcoverHILDA",      "LandCoverHILDA2015.geojson",
       "landcoverCopernicus", "LandCoverCopernicus2019.geojson",
-      "landcoverchange",     "LandCoverChangeHILDA2015_2019.geojson",
+      "landcoverInitialESACCI",      "LandCoverESACCI2015.geojson",
+      "landcoverStartingESACCI",      "LandCoverESACCI2020.geojson",
+      #"landcoverchange",     "LandCoverChangeHILDA2015_2019.geojson",
+      "landcoverchange",     "LandCoverChangeESACCI2015_2020.geojson",
       "forestmanagement",    "ForestManagement.geojson",
       "altitude",            "Altitude.geojson",
       "slope",               "Slope.geojson",
@@ -56,7 +59,9 @@ fdr_load_inputs <- function(
       "map_HILDA_LUC",       "HILDA_change",
       "map_Copernicus",      "Copernicus",
       "map_ForestMgmt",      "ForestManagement",
-      "map_protectedareas",  "ProtectedAreas"
+      "map_protectedareas",  "ProtectedAreas",
+      "map_ESACCI",          "ESACCI",
+      "map_ESACCI_LUC",      "ESACCI_change"
     )
   }
 
@@ -97,7 +102,12 @@ fdr_load_inputs <- function(
     }
   }
 
-  spatial$landcover <- if (start_map_source == "HILDA") spatial$landcoverHILDA else spatial$landcoverCopernicus
+  spatial$landcoverinitial  <- if (start_map_source == "HILDA") spatial$landcoverHILDA else
+    if (start_map_source == "COPERNICUS") spatial$landcoverCopernicus else
+      spatial$landcoverInitialESACCI
+  spatial$landcoverstarting <- if (start_map_source == "HILDA") spatial$landcoverHILDA else
+    if (start_map_source == "COPERNICUS") spatial$landcoverCopernicus else
+      spatial$landcoverStartingESACCI
 
   # ---- mapping ----
   map_fp <- file.path(data_root, "mapping_code.xlsx")
@@ -114,8 +124,10 @@ fdr_load_inputs <- function(
     mapping[[nm]] <- readxl::read_excel(map_fp, sheet = sh)
   }
 
-  mapping$map_LUC <- mapping$map_HILDA_LUC
-  mapping$map_LC  <- if (start_map_source == "HILDA") mapping$map_HILDA else mapping$map_Copernicus
+  mapping$map_LUC <- if (start_map_source == "HILDA") mapping$map_HILDA_LUC else mapping$map_ESACCI_LUC
+  mapping$map_LC  <- if (start_map_source == "HILDA") mapping$map_HILDA else
+    if (start_map_source == "HILDA") mapping$map_Copernicus else
+      mapping$map_ESACCI
 
   # ---- FABLE inputs ----
   fable_fp <- file.path(country_dir, "FABLE.xlsx")
