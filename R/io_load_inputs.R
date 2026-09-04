@@ -104,8 +104,8 @@ fdr_load_inputs <- function(
 
   # ---- Standardise area units ----
   # ESA-CCI land-cover and land-cover-change areas are provided
-  # in km2, while FABLE-C land areas and transitions are in ha.
-  # 1 km2 = 100 ha.
+  # in km2, while FABLE-C land areas and transitions are in 1000 ha.
+  # 1 km2 = 0.1 1000 ha.
 
   if (start_map_source == "ESACCI") {
 
@@ -113,7 +113,7 @@ fdr_load_inputs <- function(
       dplyr::mutate(
         dplyr::across(
           -id_c,
-          ~ as.numeric(.) * 100
+          ~ as.numeric(.) / 10
         )
       )
 
@@ -121,7 +121,7 @@ fdr_load_inputs <- function(
       dplyr::mutate(
         dplyr::across(
           -id_c,
-          ~ as.numeric(.) * 100
+          ~ as.numeric(.) / 10
         )
       )
   }
@@ -132,7 +132,7 @@ fdr_load_inputs <- function(
       dplyr::mutate(
         dplyr::across(
           -id_c,
-          ~ as.numeric(.) * 100
+          ~ as.numeric(.) / 10
         )
       )
   }
@@ -163,7 +163,7 @@ fdr_load_inputs <- function(
     dplyr::rename(lu = LandCover) %>%
     dplyr::transmute(
       lu    = tolower(as.character(lu)),
-      value = as.numeric(value)
+      value = as.numeric(value) * 1000 # to have in ha like the other land cover and land cover change data
     )
 
   FABLE_targets <- readxl::read_excel(fable_fp, sheet = pathway)
