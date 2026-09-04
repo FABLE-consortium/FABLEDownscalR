@@ -99,6 +99,44 @@ fdr_load_inputs <- function(
 
   spatial$landcover <- if (start_map_source == "HILDA") spatial$landcoverHILDA else spatial$landcoverCopernicus
 
+  spatial$landcoverchange <- if (start_map_source == "HILDA") spatial$landcoverchangeHILDA else
+    spatial$landcoverchangeESACCI
+
+  # ---- Standardise area units ----
+  # ESA-CCI land-cover and land-cover-change areas are provided
+  # in km2, while FABLE-C land areas and transitions are in ha.
+  # 1 km2 = 100 ha.
+
+  if (start_map_source == "ESACCI") {
+
+    spatial$landcoverinitial <- spatial$landcoverinitial %>%
+      dplyr::mutate(
+        dplyr::across(
+          -id_c,
+          ~ as.numeric(.) * 100
+        )
+      )
+
+    spatial$landcoverstarting <- spatial$landcoverstarting %>%
+      dplyr::mutate(
+        dplyr::across(
+          -id_c,
+          ~ as.numeric(.) * 100
+        )
+      )
+  }
+
+  if (start_map_source %in% c("ESACCI", "COPERNICUS")) {
+
+    spatial$landcoverchange <- spatial$landcoverchange %>%
+      dplyr::mutate(
+        dplyr::across(
+          -id_c,
+          ~ as.numeric(.) * 100
+        )
+      )
+  }
+
   # ---- mapping ----
   map_fp <- file.path(data_root, "mapping_code.xlsx")
   if (!file.exists(map_fp)) {
