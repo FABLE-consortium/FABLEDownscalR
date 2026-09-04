@@ -34,21 +34,21 @@ fdr_load_inputs <- function(
   # ---- default registries ----
   if (is.null(spatial_registry)) {
     spatial_registry <- tibble::tribble(
-      ~rdataset,             ~filename,
-      "population",          "Population2020.geojson",
-      "protectedareas",      "ProtectedAreas.geojson",
-      "travel",              "TravelTime.geojson",
-      "landcoverHILDA",      "LandCoverHILDA2015.geojson",
-      "landcoverCopernicus", "LandCoverCopernicus2019.geojson",
-      "landcoverInitialESACCI",      "LandCoverESACCI2015.geojson",
-      "landcoverStartingESACCI",      "LandCoverESACCI2020.geojson",
-      #"landcoverchange",     "LandCoverChangeHILDA2015_2019.geojson",
-      "landcoverchange",     "LandCoverChangeESACCI2015_2020.geojson",
-      "forestmanagement",    "ForestManagement.geojson",
-      "altitude",            "Altitude.geojson",
-      "slope",               "Slope.geojson",
-      "gaez",                "GAEZCropDistribution2015.geojson",
-      "livestock",           "GLW4WorldGriddedLivestock2020.geojson"
+      ~rdataset,                    ~filename,
+      "population",                 "Population2020.geojson",
+      "protectedareas",             "ProtectedAreas.geojson",
+      "travel",                     "TravelTime.geojson",
+      "landcoverHILDA",             "LandCoverHILDA2015.geojson",
+      "landcoverCopernicus",        "LandCoverCopernicus2019.geojson",
+      "landcoverInitialESACCI",     "LandCoverESACCI2015.geojson",
+      "landcoverStartingESACCI",    "LandCoverESACCI2020.geojson",
+      "landcoverchangeHILDA",       "LandCoverChangeHILDA2015_2020.geojson",
+      "landcoverchangeESACCI",      "LandCoverChangeESACCI2015_2020.geojson",
+      "forestmanagement",           "ForestManagement.geojson",
+      "altitude",                   "Altitude.geojson",
+      "slope",                      "Slope.geojson",
+      "gaez",                       "GAEZCropDistribution2015.geojson",
+      "livestock",                  "GLW4WorldGriddedLivestock2020.geojson"
     )
   }
 
@@ -102,12 +102,51 @@ fdr_load_inputs <- function(
     }
   }
 
-  spatial$landcoverinitial  <- if (start_map_source == "HILDA") spatial$landcoverHILDA else
+  spatial$landcoverinitial <- if (start_map_source == "HILDA") spatial$landcoverHILDA else
     if (start_map_source == "COPERNICUS") spatial$landcoverCopernicus else
       spatial$landcoverInitialESACCI
+
   spatial$landcoverstarting <- if (start_map_source == "HILDA") spatial$landcoverHILDA else
     if (start_map_source == "COPERNICUS") spatial$landcoverCopernicus else
       spatial$landcoverStartingESACCI
+
+  spatial$landcoverchange <- if (start_map_source == "HILDA") spatial$landcoverchangeHILDA else
+    spatial$landcoverchangeESACCI
+
+  # ---- Standardise area units ----
+  # ESA-CCI land-cover and land-cover-change areas are provided
+  # in km2, while FABLE-C land areas and transitions are in ha.
+  # 1 km2 = 100 ha.
+
+  if (start_map_source == "ESACCI") {
+
+    spatial$landcoverinitial <- spatial$landcoverinitial %>%
+      dplyr::mutate(
+        dplyr::across(
+          -id_c,
+          ~ as.numeric(.) * 100
+        )
+      )
+
+    spatial$landcoverstarting <- spatial$landcoverstarting %>%
+      dplyr::mutate(
+        dplyr::across(
+          -id_c,
+          ~ as.numeric(.) * 100
+        )
+      )
+  }
+
+  if (start_map_source %in% c("ESACCI", "COPERNICUS")) {
+
+    spatial$landcoverchange <- spatial$landcoverchange %>%
+      dplyr::mutate(
+        dplyr::across(
+          -id_c,
+          ~ as.numeric(.) * 100
+        )
+      )
+  }
 
   # ---- mapping ----
   map_fp <- file.path(data_root, "mapping_code.xlsx")
@@ -124,9 +163,11 @@ fdr_load_inputs <- function(
     mapping[[nm]] <- readxl::read_excel(map_fp, sheet = sh)
   }
 
-  mapping$map_LUC <- if (start_map_source == "HILDA") mapping$map_HILDA_LUC else mapping$map_ESACCI_LUC
-  mapping$map_LC  <- if (start_map_source == "HILDA") mapping$map_HILDA else
-    if (start_map_source == "HILDA") mapping$map_Copernicus else
+  mapping$map_LUC <- if (start_map_source == "HILDA") mapping$map_HILDA_LUC else
+    mapping$map_ESACCI_LUC
+
+  mapping$map_LC <- if (start_map_source == "HILDA") mapping$map_HILDA else
+    if (start_map_source == "COPERNICUS") mapping$map_Copernicus else
       mapping$map_ESACCI
 
   # ---- FABLE inputs ----
