@@ -25,8 +25,7 @@ fdr_harmonize_start_map <- function(
     map_LC,
     LC_targets,
     keep_areas = "from",
-    id_col = "id_c",
-    area_unit_factor = 1/10
+    id_col = "id_c"
 ) {
 
   if(type == "initial")  LandCover_df <- dplyr::mutate(LandCoverInitial_df, !!id_col := as.character(.data[[id_col]])) else
@@ -54,7 +53,10 @@ fdr_harmonize_start_map <- function(
     dplyr::rename(lu.from = LandCover) %>%
     dplyr::filter(!lu.from %in% c("ocean","water","not relevant")) %>%
     dplyr::group_by(.data[[id_col]], lu.from) %>%
-    dplyr::summarise(value = sum(AreaPerCover, na.rm = TRUE) * area_unit_factor, .groups = "drop") %>%
+    dplyr::summarise(
+      value = sum(AreaPerCover, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
     dplyr::rename(ns = !!id_col) %>%
     dplyr::mutate(ns = as.character(ns)) %>%
     dplyr::bind_rows(
