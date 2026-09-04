@@ -28,6 +28,7 @@ fdr_load_inputs <- function(
     EF_filename = file.path("global", "EF_Pools_transition_Cell.rds")
 ) {
 
+
   start_map_source <- toupper(trimws(start_map_source))
   start_map_source <- match.arg(start_map_source, choices = c("HILDA", "COPERNICUS", "ESACCI"))
 
