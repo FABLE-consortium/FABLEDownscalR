@@ -178,7 +178,7 @@ fdr_load_inputs <- function(
     dplyr::rename(lu = LandCover) %>%
     dplyr::transmute(
       lu    = tolower(as.character(lu)),
-      value = as.numeric(value) * 1000 # to have in ha like the other land cover and land cover change data
+      value = as.numeric(value)
     )
 
   FABLE_targets <- readxl::read_excel(fable_fp, sheet = pathway)
