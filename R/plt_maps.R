@@ -505,16 +505,13 @@ fdr_plot_downscaled_GHG_cum <- function(
 ) {
   chk_required_cols(out_res, c("ns", "lu.to", "times", "GHG_biomass"))
   out_int <- fdr_to_ns_int(out_res, ns_map)
-
   df_pix <- terra::as.data.frame(rasterized_layer, xy = TRUE, na.rm = FALSE)
   names(df_pix)[3] <- "ns"
   df_pix <- dplyr::filter(df_pix, !is.na(ns))
-
   inputs <- out_int %>%
     dplyr::mutate(GHG_biomass = tidyr::replace_na(GHG_biomass, 0)) %>%
     dplyr::group_by(ns, lu.to, times) %>%
     dplyr::summarise(GHG_biomass = sum(GHG_biomass), .groups = "drop")
-
   if (!is.null(LU)) inputs <- dplyr::filter(inputs, lu.to %in% LU)
 
   # ----------------------------
@@ -527,9 +524,7 @@ fdr_plot_downscaled_GHG_cum <- function(
     dplyr::group_by(ns) %>%
     dplyr::mutate(GHG_biomass = cumsum(GHG_biomass)) %>%
     dplyr::ungroup()
-
   inputs_agg <- dplyr::filter(inputs_agg, times %in% year)
-
   inputs_agg <- inputs_agg %>%
     dplyr::mutate(times = factor(times, levels = sort(unique(as.numeric(as.character(times))))))
 
@@ -539,11 +534,14 @@ fdr_plot_downscaled_GHG_cum <- function(
   plot_df <- df_pix %>%
     dplyr::left_join(inputs_agg, by = "ns") %>%
     dplyr::filter(!is.na(GHG_biomass), !is.na(times))
-
   if (is.null(limits)) {
     max_abs <- max(abs(plot_df$GHG_biomass), na.rm = TRUE)
     limits  <- c(-max_abs, max_abs)
   }
+
+  # Fixed, evenly spaced colorbar breaks (min, midpoints, 0, max) to avoid
+  # overlapping tick labels
+  cbar_breaks <- c(limits[1], limits[1] / 2, 0, limits[2] / 2, limits[2])
 
   p <- ggplot2::ggplot(plot_df) +
     ggplot2::geom_raster(ggplot2::aes(x = x, y = y, fill = GHG_biomass)) +
@@ -555,7 +553,9 @@ fdr_plot_downscaled_GHG_cum <- function(
       limits   = limits,
       na.value = na_color,
       name     = "Cumulative CO2\nemissions/sequestration\nper cells\n(Mt CO2)",
-      guide    = ggplot2::guide_colorbar(barwidth = 10, barheight = 0.8)
+      breaks   = cbar_breaks,
+      labels   = scales::label_number(accuracy = 1),
+      guide    = ggplot2::guide_colorbar(barwidth = 12, barheight = 0.8)
     ) +
     ggplot2::coord_equal(expand = FALSE) +
     theme_fdr_map() +
