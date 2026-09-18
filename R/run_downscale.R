@@ -46,7 +46,8 @@ fdr_run_downscaling <- function(
     priors,
     mnl_niter = 100,
     mnl_nburn = 50,
-    EF_LUC
+    EF_LUC,
+    Carbon_LUC
 ) {
 
   if (!requireNamespace("downscalr", quietly = TRUE)) {
@@ -426,7 +427,7 @@ fdr_run_downscaling <- function(
     filter(!is.na(ECO_NAME))
 
 
-  grid50_carbon_stocks <- readRDS(here("Data/grid50_carbon_stocks.rds")) %>%
+  grid50_carbon_stocks <- Carbon_LUC %>%
     select(
       id_c,
       biomass_total_pasture,

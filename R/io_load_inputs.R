@@ -25,7 +25,9 @@ fdr_load_inputs <- function(
     spatial_registry = NULL,
     mapping_registry = NULL,
     grid_filename = file.path("global", "grid50_equal_area.csv"),
-    EF_filename = file.path("global", "EF_Pools_transition_Cell.rds")
+    EF_filename = file.path("global", "EF_Pools_transition_Cell.rds"),
+    Carbon_filename = file.path("global", "grid50_carbon_stocks.rds")
+
 ) {
 
 
@@ -207,6 +209,15 @@ fdr_load_inputs <- function(
     dplyr::filter(iso3 == country) %>%
     dplyr::mutate(id_c = as.character(id_c))
 
+  # ---- Carbon Content from land use change ----
+
+  Carbon_pools <- file.path(data_root, Carbon_filename)
+  if (!file.exists(Carbon_pools)) stop("Carbon stock file not found: ", Carbon_pools)
+
+  Carbon_LUC <- readRDS(Carbon_pools) %>%
+    dplyr::filter(iso3 == country) %>%
+    dplyr::mutate(id_c = as.character(id_c))
+
 
   list(
     spatial       = spatial,
@@ -216,6 +227,8 @@ fdr_load_inputs <- function(
     LC_targets    = LC_targets,
     FABLE_targets = FABLE_targets,
     EF_LUC        = EF_LUC,
+    Carbon_LUC    = Carbon_LUC,
+
     meta = list(
       country_dir   = country_dir,
       mapping_file  = map_fp,
