@@ -455,31 +455,51 @@ fdr_run_downscaling <- function(
     mutate(
       ef_biomass = case_when(
 
-        # Valid transitions to new forest
+        # Afforestation: cropland/pasture/otherland -> new forest
         lu.to == "newforest" &
-          lu.from %in% c("cropland", "pasture", "otherland", "urban") ~
+          lu.from %in% c("cropland", "pasture", "otherland") ~
           -(biomass_total_forest / 50),
 
-        # Valid transitions to otherland
+        # Abandonment: cropland/pasture/forest -> otherland
         lu.to == "otherland" &
-          lu.from %in% c("cropland", "pasture", "forest", "urban") ~
+          lu.from %in% c("cropland", "pasture", "forest") ~
           -(biomass_total_otherland / 20),
+
         # All other transitions: use EF from EF_LUC
         TRUE ~ ef_biomass
       ),
 
-      # GHG_biomass in MtCO2e
-      GHG_biomass = ef_biomass * value * 3.667 / 1000
-      )%>%
-    # Remove intermediate carbon-stock columns
+      # Annual biomass GHG in MtCO2e
+      GHG_biomass = ef_biomass * value * 3.667 / 1000,
+
+      # Keep only biomass sequestration from afforestation and abandonment
+      GHG_biomass_cumulative = case_when(
+        lu.to == "newforest" &
+          lu.from %in% c("cropland", "pasture", "otherland") ~ GHG_biomass,
+
+        lu.to == "otherland" &
+          lu.from %in% c("cropland", "pasture", "forest") ~ GHG_biomass,
+
+        TRUE ~ 0
+      )
+    ) %>%
+    arrange(ns, times) %>%
+    group_by(ns) %>%
+    mutate(
+      GHG_biomass_cumulative = cumsum(GHG_biomass_cumulative)
+    ) %>%
+    ungroup() %>%
+    mutate(
+      GHG_biomass = GHG_biomass_cumulative
+    ) %>%
     select(
+      -GHG_biomass_cumulative,
       -biomass_total_pasture,
       -biomass_total_forest,
       -biomass_total_otherland,
       -biomass_total_urban,
       -biomass_total_cropland
     )
-
 
 
 
