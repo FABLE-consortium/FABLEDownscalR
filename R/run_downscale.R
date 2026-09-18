@@ -455,12 +455,15 @@ fdr_run_downscaling <- function(
     mutate(
       ef_biomass = case_when(
 
-        # New forest: carbon stock from forest biomass
-        lu.to == "newforest" ~ -(biomass_total_forest / 50),
+        # Valid transitions to new forest
+        lu.to == "newforest" &
+          lu.from %in% c("cropland", "pasture", "otherland", "urban") ~
+          -(biomass_total_forest / 50),
 
-        # Otherland: carbon stock from otherland biomass
-        lu.to == "otherland" ~ -(biomass_total_otherland / 20),
-
+        # Valid transitions to otherland
+        lu.to == "otherland" &
+          lu.from %in% c("cropland", "pasture", "forest", "urban") ~
+          -(biomass_total_otherland / 20),
         # All other transitions: use EF from EF_LUC
         TRUE ~ ef_biomass
       ),
@@ -468,8 +471,6 @@ fdr_run_downscaling <- function(
       # GHG_biomass in MtCO2e
       GHG_biomass = ef_biomass * value * 3.667 / 1000
       )%>%
-    # Remove no-change transitions
-    filter(lu.from != lu.to) %>%
     # Remove intermediate carbon-stock columns
     select(
       -biomass_total_pasture,
