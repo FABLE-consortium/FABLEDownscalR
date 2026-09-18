@@ -424,6 +424,42 @@ fdr_run_downscaling <- function(
     # left_join(grid %>% select(iso3, ECO_NAME, id_c), relationship = "many-to-many") %>%
     filter(!is.na(ECO_NAME))
 
+
+  Carbon_Pools_transition_Ecoregion <- EF_LUC %>%
+    dplyr::group_by(id_c) %>%
+    dplyr::summarise(
+      C_cropland = 0,
+
+      C_forest = C_cropland -
+        first(ef_biomass[lu.from == "cropland" &
+                           lu.to == "forest"]),
+
+      C_nonveg = C_cropland -
+        first(ef_biomass[lu.from == "cropland" &
+                           lu.to == "nonveg"]),
+
+      C_otherland = C_cropland -
+        first(ef_biomass[lu.from == "cropland" &
+                           lu.to == "otherland"]),
+
+      C_pasture = C_cropland -
+        first(ef_biomass[lu.from == "cropland" &
+                           lu.to == "pasture"]),
+
+      .groups = "drop"
+    ) %>%
+    tidyr::pivot_longer(
+      cols = dplyr::starts_with("C_"),
+      names_to = "lu",
+      values_to = "C_biomass"
+    ) %>%
+    dplyr::mutate(
+      lu = stringr::str_remove(lu, "^C_")
+    )
+
+
+
+
   #
   # if (nrow(EF_Pools_transition_Ecoregion) == 0) {
   #   stop("No rows found in EF_Pools_transition_Ecoregion.csv for iso3 = '", country_iso3, "'.")
@@ -434,6 +470,17 @@ fdr_run_downscaling <- function(
                 select(id_c, from, to, ef_biomass),
               by = c("ns" ="id_c", "lu.from" = "from", "lu.to" = "to")
     ) %>%
+
+    # Join carbon stocks
+    left_join(
+      Carbon_Pools_transition_Ecoregion %>%
+        select(id_c, lu, C_biomass),
+      by = c(
+        "ns" = "id_c",
+        "lu.to" = "lu"
+      )
+    ) %>%
+
     #GHG_biomass in MtCO2
     mutate(GHG_biomass = ef_biomass * value * 3.667 / 1000)
 
