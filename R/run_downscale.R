@@ -459,16 +459,27 @@ fdr_run_downscaling <- function(
         lu.to == "newforest" ~ biomass_total_forest / 50,
 
         # Otherland: carbon stock from otherland biomass
-        lu.to == "otherland" ~ biomass_total_otherland / 80,
+        lu.to == "otherland" ~ biomass_total_otherland / 20,
 
         # All other transitions: use EF from EF_LUC
         TRUE ~ ef_biomass
       ),
 
       # GHG_biomass in MtCO2e
-      GHG_biomass = ef_biomass * value * 3.667 / 1000
+      GHG_biomass = case_when(
+
+        # Carbon sequestration: negative emissions
+        lu.to %in% c("newforest", "otherland") ~
+          -(ef_biomass * value * 3.667 / 1000),
+
+        # All other transitions: positive emissions
+        TRUE ~
+          ef_biomass * value * 3.667 / 1000
+      )
     ) %>%
+    # Remove no-change transitions
     filter(lu.from != lu.to) %>%
+    # Remove intermediate carbon-stock columns
     select(
       -biomass_total_pasture,
       -biomass_total_forest,
@@ -476,6 +487,8 @@ fdr_run_downscaling <- function(
       -biomass_total_urban,
       -biomass_total_cropland
     )
+
+
 
 
     #
