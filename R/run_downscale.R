@@ -444,63 +444,65 @@ fdr_run_downscaling <- function(
   # }
 
   results$out.res <- results$out.res %>%
-    left_join(EF_Pools_transition_Ecoregion %>%
-                select(id_c, from, to, ef_biomass),
-              by = c("ns" ="id_c", "lu.from" = "from", "lu.to" = "to")
+    left_join(
+      EF_Pools_transition_Ecoregion %>%
+        select(id_c, from, to, ef_biomass),
+      by = c("ns" = "id_c", "lu.from" = "from", "lu.to" = "to")
     ) %>%
     left_join(
       grid50_carbon_stocks,
       by = c("ns" = "id_c")
     ) %>%
     mutate(
+      # Biomass EF
       ef_biomass = case_when(
 
-        # Afforestation: cropland/pasture/otherland -> new forest
+        # Afforestation
         lu.to == "newforest" &
           lu.from %in% c("cropland", "pasture", "otherland") ~
           -(biomass_total_forest / 50),
 
-        # Abandonment: cropland/pasture/forest -> otherland
+        # Abandonment
         lu.to == "otherland" &
           lu.from %in% c("cropland", "pasture", "forest") ~
           -(biomass_total_otherland / 20),
 
-        # All other transitions: use EF from EF_LUC
         TRUE ~ ef_biomass
       ),
 
-      # Annual biomass GHG in MtCO2e
-      GHG_biomass = ef_biomass * value * 3.667 / 1000,
-
-      # Keep only biomass sequestration from afforestation and abandonment
-      GHG_biomass_cumulative = case_when(
-        lu.to == "newforest" &
-          lu.from %in% c("cropland", "pasture", "otherland") ~ GHG_biomass,
-
-        lu.to == "otherland" &
-          lu.from %in% c("cropland", "pasture", "forest") ~ GHG_biomass,
-
-        TRUE ~ 0
-      )
+      # Annual biomass GHG for all transitions
+      GHG_biomass = ef_biomass * value * 3.667 / 1000
     ) %>%
     arrange(ns, times) %>%
     group_by(ns) %>%
     mutate(
-      GHG_biomass_cumulative = cumsum(GHG_biomass_cumulative)
+      # Cumulative only for afforestation and abandonment
+      GHG_biomass = if_else(
+        (lu.to == "newforest" &
+           lu.from %in% c("cropland", "pasture", "otherland")) |
+          (lu.to == "otherland" &
+             lu.from %in% c("cropland", "pasture", "forest")),
+
+        cumsum(if_else(
+          (lu.to == "newforest" &
+             lu.from %in% c("cropland", "pasture", "otherland")) |
+            (lu.to == "otherland" &
+               lu.from %in% c("cropland", "pasture", "forest")),
+          GHG_biomass,
+          0
+        )),
+
+        GHG_biomass
+      )
     ) %>%
     ungroup() %>%
-    mutate(
-      GHG_biomass = GHG_biomass_cumulative
-    ) %>%
     select(
-      -GHG_biomass_cumulative,
       -biomass_total_pasture,
       -biomass_total_forest,
       -biomass_total_otherland,
       -biomass_total_urban,
       -biomass_total_cropland
     )
-
 
 
     #
