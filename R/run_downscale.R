@@ -419,10 +419,23 @@ fdr_run_downscaling <- function(
 
   EF_Pools_transition_Ecoregion <- EF_LUC %>%
     mutate(to = (ifelse(to == "forest", "newforest", to))) %>%
-    mutate(ef_biomass = (ifelse(to =="newforest", ef_biomass/50, ef_biomass))) %>%
-    mutate(ef_biomass = (ifelse(to =="otherland", ef_biomass/80, ef_biomass))) %>%
+  # %>%
+    # mutate(ef_biomass = (ifelse(to =="newforest", ef_biomass/50, ef_biomass))) %>%
+    # mutate(ef_biomass = (ifelse(to =="otherland", ef_biomass/80, ef_biomass))) %>%
     # left_join(grid %>% select(iso3, ECO_NAME, id_c), relationship = "many-to-many") %>%
     filter(!is.na(ECO_NAME))
+
+
+  grid50_carbon_stocks <- readRDS(here("Data/grid50_carbon_stocks.rds")) %>%
+    select(
+      id_c,
+      biomass_total_pasture,
+      biomass_total_forest,
+      biomass_total_otherland,
+      biomass_total_urban,
+      biomass_total_cropland
+    )
+
 
   #
   # if (nrow(EF_Pools_transition_Ecoregion) == 0) {
@@ -434,8 +447,35 @@ fdr_run_downscaling <- function(
                 select(id_c, from, to, ef_biomass),
               by = c("ns" ="id_c", "lu.from" = "from", "lu.to" = "to")
     ) %>%
-    #GHG_biomass in MtCO2
-    mutate(GHG_biomass = ef_biomass * value * 3.667 / 1000)
+    left_join(
+      grid50_carbon_stocks,
+      by = c("ns" = "id_c")
+    ) %>%
+    mutate(
+      GHG_biomass = case_when(
+
+        # New forest
+        lu.to == "newforest" ~
+          (biomass_total_forest / 50) * value * 3.667 / 1000,
+
+        # Otherland
+        lu.to == "otherland" ~
+          (biomass_total_otherland / 80) * value * 3.667 / 1000,
+
+        # All other land-use transitions
+        TRUE ~
+          ef_biomass * value * 3.667 / 1000
+      )
+    )
+
+
+    #
+    #
+    # #GHG_biomass in MtCO2
+    # if to is newforest or otherland then use this fomula
+    # mutate(GHG_biomass = (biomass_total_forest/50) * value * 3.667 / 1000)
+    # mutate(GHG_biomass = (biomass_total_otherland/80) * value * 3.667 / 1000)
+    # mutate(GHG_biomass = ef_biomass * value * 3.667 / 1000)
 
 
   # ---------------------------------------------------------------------------
