@@ -470,43 +470,38 @@ fdr_run_downscaling <- function(
         TRUE ~ ef_biomass
       ),
 
-      # Annual biomass GHG for all transitions
-      GHG_biomass = ef_biomass * value * 3.667 / 1000
+      # Annual GHG
+      GHG_biomass = ef_biomass * value * 3.667 / 1000,
+
+      # Identify the type of cumulative biomass process
+      biomass_type = case_when(
+        lu.to == "newforest" &
+          lu.from %in% c("cropland", "pasture", "otherland") ~ "newforest",
+
+        lu.to == "otherland" &
+          lu.from %in% c("cropland", "pasture", "forest") ~ "otherland",
+
+        TRUE ~ NA_character_
+      )
     ) %>%
     arrange(ns, times) %>%
-    group_by(ns) %>%
+    group_by(ns, biomass_type) %>%
     mutate(
-      # Cumulative only for afforestation and abandonment
       GHG_biomass = if_else(
-        (lu.to == "newforest" &
-           lu.from %in% c("cropland", "pasture", "otherland")) |
-          (lu.to == "otherland" &
-             lu.from %in% c("cropland", "pasture", "forest")),
-
-        cumsum(if_else(
-          (lu.to == "newforest" &
-             lu.from %in% c("cropland", "pasture", "otherland")) |
-            (lu.to == "otherland" &
-               lu.from %in% c("cropland", "pasture", "forest")),
-          GHG_biomass,
-          0
-        )),
-
+        !is.na(biomass_type),
+        cumsum(GHG_biomass),
         GHG_biomass
       )
     ) %>%
     ungroup() %>%
     select(
+      -biomass_type,
       -biomass_total_pasture,
       -biomass_total_forest,
       -biomass_total_otherland,
       -biomass_total_urban,
       -biomass_total_cropland
     )
-
-
-    #
-    #
     # #GHG_biomass in MtCO2
     # if to is newforest or otherland then use this fomula
     # mutate(GHG_biomass = (biomass_total_forest/50) * value * 3.667 / 1000)
