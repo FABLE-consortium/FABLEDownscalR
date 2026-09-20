@@ -454,7 +454,6 @@ fdr_run_downscaling <- function(
       by = c("ns" = "id_c")
     ) %>%
     mutate(
-      # Biomass EF
       ef_biomass = case_when(
 
         # Afforestation
@@ -470,43 +469,71 @@ fdr_run_downscaling <- function(
         TRUE ~ ef_biomass
       ),
 
-      # Annual GHG
-      GHG_biomass = ef_biomass * value * 3.667 / 1000,
-
-      # Identify the type of cumulative biomass process
-      biomass_type = case_when(
-        lu.to == "newforest" &
-          lu.from %in% c("cropland", "pasture", "otherland") ~ "newforest",
-
-        lu.to == "otherland" &
-          lu.from %in% c("cropland", "pasture", "forest") ~ "otherland",
-
-        TRUE ~ NA_character_
-      )
+      GHG_biomass = ef_biomass * value * 3.667 / 1000
     ) %>%
-    arrange(ns, times) %>%
-    group_by(ns, biomass_type) %>%
+
+    # Calculate cumulative biomass GHG by process and year
+    group_by(ns, times) %>%
     mutate(
-      GHG_biomass = if_else(
-        !is.na(biomass_type),
-        cumsum(GHG_biomass),
-        GHG_biomass
+      GHG_afforestation_year = sum(
+        if_else(
+          lu.to == "newforest" &
+            lu.from %in% c("cropland", "pasture", "otherland"),
+          GHG_biomass,
+          0
+        ),
+        na.rm = TRUE
+      ),
+
+      GHG_abandonment_year = sum(
+        if_else(
+          lu.to == "otherland" &
+            lu.from %in% c("cropland", "pasture", "forest"),
+          GHG_biomass,
+          0
+        ),
+        na.rm = TRUE
       )
     ) %>%
     ungroup() %>%
+
+    arrange(ns, times) %>%
+    group_by(ns) %>%
+    mutate(
+      GHG_afforestation_cumulative = cumsum(GHG_afforestation_year),
+      GHG_abandonment_cumulative = cumsum(GHG_abandonment_year)
+    ) %>%
+    ungroup() %>%
+
+    mutate(
+      GHG_biomass = case_when(
+
+        # Cumulative afforestation
+        lu.to == "newforest" &
+          lu.from %in% c("cropland", "pasture", "otherland") ~
+          GHG_afforestation_cumulative,
+
+        # Cumulative abandonment
+        lu.to == "otherland" &
+          lu.from %in% c("cropland", "pasture", "forest") ~
+          GHG_abandonment_cumulative,
+
+        # Everything else stays annual
+        TRUE ~ GHG_biomass
+      )
+    ) %>%
     select(
-      -biomass_type,
+      -GHG_afforestation_year,
+      -GHG_abandonment_year,
+      -GHG_afforestation_cumulative,
+      -GHG_abandonment_cumulative,
       -biomass_total_pasture,
       -biomass_total_forest,
       -biomass_total_otherland,
       -biomass_total_urban,
       -biomass_total_cropland
     )
-    # #GHG_biomass in MtCO2
-    # if to is newforest or otherland then use this fomula
-    # mutate(GHG_biomass = (biomass_total_forest/50) * value * 3.667 / 1000)
-    # mutate(GHG_biomass = (biomass_total_otherland/80) * value * 3.667 / 1000)
-    # mutate(GHG_biomass = ef_biomass * value * 3.667 / 1000)
+
 
 
   # ---------------------------------------------------------------------------
