@@ -472,76 +472,23 @@ fdr_run_downscaling <- function(
 
       # Annual GHG for every transition
       GHG_biomass = ef_biomass * value * 3.667 / 1000
-    )
-
-  # Cumulative biomass only for afforestation
-  afforestation_cumulative <- results$out.res %>%
-    filter(
-      lu.to == "newforest",
-      lu.from %in% c("cropland", "pasture", "otherland")
     ) %>%
-    group_by(ns, times) %>%
-    summarise(
-      GHG_biomass = sum(GHG_biomass, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    arrange(ns, times) %>%
-    group_by(ns) %>%
+    arrange(ns, lu.from, lu.to, times) %>%
+    group_by(ns, lu.from, lu.to) %>%
     mutate(
-      GHG_biomass = cumsum(GHG_biomass)
-    ) %>%
-    ungroup()
+      GHG_biomass = if_else(
+        (lu.to == "newforest" &
+           lu.from %in% c("cropland", "pasture", "otherland")) |
+          (lu.to == "otherland" &
+             lu.from %in% c("cropland", "pasture", "forest")),
 
-  # Cumulative biomass only for abandonment
-  abandonment_cumulative <- results$out.res %>%
-    filter(
-      lu.to == "otherland",
-      lu.from %in% c("cropland", "pasture", "forest")
-    ) %>%
-    group_by(ns, times) %>%
-    summarise(
-      GHG_biomass = sum(GHG_biomass, na.rm = TRUE),
-      .groups = "drop"
-    ) %>%
-    arrange(ns, times) %>%
-    group_by(ns) %>%
-    mutate(
-      GHG_biomass = cumsum(GHG_biomass)
-    ) %>%
-    ungroup()
+        cumsum(GHG_biomass),
 
-  # Put the cumulative values back onto the original transition rows
-  results$out.res <- results$out.res %>%
-    left_join(
-      afforestation_cumulative %>%
-        rename(GHG_afforestation_cumulative = GHG_biomass),
-      by = c("ns", "times")
-    ) %>%
-    left_join(
-      abandonment_cumulative %>%
-        rename(GHG_abandonment_cumulative = GHG_biomass),
-      by = c("ns", "times")
-    ) %>%
-    mutate(
-      GHG_biomass = case_when(
-
-        # Afforestation gets its cumulative value
-        lu.to == "newforest" &
-          lu.from %in% c("cropland", "pasture", "otherland") ~
-          GHG_afforestation_cumulative,
-
-        # Abandonment gets its cumulative value
-        lu.to == "otherland" &
-          lu.from %in% c("cropland", "pasture", "forest") ~
-          GHG_abandonment_cumulative,
-
-        # Everything else remains annual
-        TRUE ~ GHG_biomass
+        GHG_biomass
       )
     ) %>%
+    ungroup() %>%
     select(
-      -GHG_afforestation_cumulative,
-      -GHG_abandonment_cumulative,
       -biomass_total_pasture,
       -biomass_total_forest,
       -biomass_total_otherland,
